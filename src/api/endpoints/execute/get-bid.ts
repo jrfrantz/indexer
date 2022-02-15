@@ -148,33 +148,31 @@ export const getExecuteBidOptions: RouteOptions = {
             data: !hasSignature
               ? undefined
               : {
-                  endpoint: "/orders",
+                  endpoint: "/order",
                   method: "POST",
                   body: {
-                    orders: [
-                      {
-                        kind: "wyvern-v2",
-                        orderbook: query.orderbook,
-                        data: {
-                          ...order.params,
-                          v: query.v,
-                          r: query.r,
-                          s: query.s,
-                          contract: query.contract,
-                          tokenId: query.tokenId,
-                        },
-                        attribute:
-                          query.collection &&
-                          query.attributeKey &&
-                          query.attributeValue
-                            ? {
-                                collection: query.collection,
-                                key: query.attributeKey,
-                                value: query.attributeValue,
-                              }
-                            : undefined,
+                    order: {
+                      kind: "wyvern-v2",
+                      orderbook: query.orderbook,
+                      data: {
+                        ...order.params,
+                        v: query.v,
+                        r: query.r,
+                        s: query.s,
+                        contract: query.contract,
+                        tokenId: query.tokenId,
                       },
-                    ],
+                      attribute:
+                        query.collection &&
+                        query.attributeKey &&
+                        query.attributeValue
+                          ? {
+                              collection: query.collection,
+                              key: query.attributeKey,
+                              value: query.attributeValue,
+                            }
+                          : undefined,
+                    },
                   },
                 },
           },

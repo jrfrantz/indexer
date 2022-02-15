@@ -237,23 +237,21 @@ export const getExecuteListOptions: RouteOptions = {
             data: !hasSignature
               ? undefined
               : {
-                  endpoint: "/orders",
+                  endpoint: "/order",
                   method: "POST",
                   body: {
-                    orders: [
-                      {
-                        kind: "wyvern-v2",
-                        orderbook: query.orderbook,
-                        data: {
-                          ...order.params,
-                          v: query.v,
-                          r: query.r,
-                          s: query.s,
-                          contract: query.contract,
-                          tokenId: query.tokenId,
-                        },
+                    orders: {
+                      kind: "wyvern-v2",
+                      orderbook: query.orderbook,
+                      data: {
+                        ...order.params,
+                        v: query.v,
+                        r: query.r,
+                        s: query.s,
+                        contract: query.contract,
+                        tokenId: query.tokenId,
                       },
-                    ],
+                    },
                   },
                 },
           },

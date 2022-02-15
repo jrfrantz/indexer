@@ -7,4 +7,5 @@ export * from "@/api/endpoints/orders/get-orders-executed";
 export * from "@/api/endpoints/orders/get-orders-fill";
 export * from "@/api/endpoints/orders/get-user-positions";
 export * from "@/api/endpoints/orders/get-users-liquidity";
+export * from "@/api/endpoints/orders/post-order";
 export * from "@/api/endpoints/orders/post-orders";
