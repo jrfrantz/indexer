@@ -27,6 +27,12 @@ export const getExecuteListOptions: RouteOptions = {
       orderbook: Joi.string()
         .valid("reservoir", "opensea")
         .default("reservoir"),
+      disableRoyalties: Joi.boolean().default(false),
+      fee: Joi.alternatives(Joi.string(), Joi.number()),
+      feeRecipient: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-f0-9]{40}$/)
+        .disallow(AddressZero),
       v: Joi.number(),
       r: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
       s: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
@@ -67,6 +73,11 @@ export const getExecuteListOptions: RouteOptions = {
     const query = request.query as any;
 
     try {
+      if (!query.disableRoyalties) {
+        query.fee = undefined;
+        query.feeRecipient = undefined;
+      }
+
       const order = await wyvernV2.buildOrder({
         ...query,
         side: "sell",
