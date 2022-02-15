@@ -240,7 +240,7 @@ export const getExecuteListOptions: RouteOptions = {
                   endpoint: "/order",
                   method: "POST",
                   body: {
-                    orders: {
+                    order: {
                       kind: "wyvern-v2",
                       orderbook: query.orderbook,
                       data: {
