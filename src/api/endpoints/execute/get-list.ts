@@ -169,6 +169,38 @@ export const getExecuteListOptions: RouteOptions = {
         return { error: "Unknown contract" };
       }
 
+      if (!isApproved) {
+        return {
+          steps: [
+            {
+              action: "Proxy registration",
+              description: "Proxy registration",
+              status: "complete",
+              kind: "transaction",
+            },
+            {
+              action: "Approving token",
+              description: "Approving token",
+              status: "incomplete",
+              kind: "transaction",
+              data: approvalTx,
+            },
+            {
+              action: "Signing order",
+              description: "Signing order",
+              status: "incomplete",
+              kind: "signature",
+            },
+            {
+              action: "Relaying order",
+              description: "Relaying order",
+              status: "incomplete",
+              kind: "request",
+            },
+          ],
+        };
+      }
+
       const hasSignature = query.v && query.r && query.s;
 
       return {
@@ -182,9 +214,8 @@ export const getExecuteListOptions: RouteOptions = {
           {
             action: "Approving proxy",
             description: "Approving proxy",
-            status: isApproved ? "complete" : "incomplete",
+            status: "complete",
             kind: "transaction",
-            data: isApproved ? undefined : approvalTx,
           },
           {
             action: "Signing order",
