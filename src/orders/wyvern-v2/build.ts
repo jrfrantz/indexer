@@ -14,6 +14,8 @@ export type BuildOrderOptions = {
   collection?: string;
   attributeKey?: string;
   attributeValue?: string;
+  fee?: number;
+  feeRecipient?: string;
   orderbook: string;
   maker: string;
   side: "buy" | "sell";
@@ -33,8 +35,8 @@ export const buildOrder = async (options: BuildOrderOptions) => {
         options.side === "buy"
           ? Sdk.Common.Addresses.Weth[config.chainId]
           : Sdk.Common.Addresses.Eth[config.chainId],
-      fee: 0,
-      feeRecipient: options.maker,
+      fee: options.fee || 0,
+      feeRecipient: options.feeRecipient || options.maker,
       listingTime: options.listingTime,
       expirationTime: options.expirationTime,
       salt: options.salt,
@@ -58,7 +60,12 @@ export const buildOrder = async (options: BuildOrderOptions) => {
         { contract, tokenId }
       );
 
-      if (royalty.royalty_bps && royalty.royalty_recipient) {
+      if (
+        buildParams.fee === 0 &&
+        buildParams.feeRecipient === options.maker &&
+        royalty.royalty_bps &&
+        royalty.royalty_recipient
+      ) {
         buildParams.fee = royalty.royalty_bps;
         buildParams.feeRecipient = royalty.royalty_recipient;
       }
@@ -109,7 +116,12 @@ export const buildOrder = async (options: BuildOrderOptions) => {
         { collection }
       );
 
-      if (royalty.royalty_bps && royalty.royalty_recipient) {
+      if (
+        buildParams.fee === 0 &&
+        buildParams.feeRecipient === options.maker &&
+        royalty.royalty_bps &&
+        royalty.royalty_recipient
+      ) {
         buildParams.fee = royalty.royalty_bps;
         buildParams.feeRecipient = royalty.royalty_recipient;
       }
@@ -175,7 +187,12 @@ export const buildOrder = async (options: BuildOrderOptions) => {
         { collection }
       );
 
-      if (royalty.royalty_bps && royalty.royalty_recipient) {
+      if (
+        buildParams.fee === 0 &&
+        buildParams.feeRecipient === options.maker &&
+        royalty.royalty_bps &&
+        royalty.royalty_recipient
+      ) {
         buildParams.fee = royalty.royalty_bps;
         buildParams.feeRecipient = royalty.royalty_recipient;
       }
