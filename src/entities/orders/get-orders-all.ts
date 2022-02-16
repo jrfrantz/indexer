@@ -6,6 +6,8 @@ export type GetOrdersAllFilter = {
   sortDirection: "asc" | "desc";
   continuation?: string;
   limit: number;
+  startTime?: number;
+  endTime?: number;
 };
 
 export type GetOrdersAllResponse = {
@@ -71,6 +73,14 @@ export const getOrdersAll = async (
     );
   }
 
+  if (filter.startTime) {
+    conditions.push(`"o"."created_at" >= $/startTime/`);
+  }
+
+  if (filter.endTime) {
+    conditions.push(`"o"."created_at" <= $/endTime/`);
+  }
+
   if (conditions.length) {
     baseQuery += " where " + conditions.map((c) => `(${c})`).join(" and ");
   }
@@ -104,6 +114,7 @@ export const getOrdersAll = async (
       rawData: r.raw_data,
     }))
   );
+
 
   let continuation = null;
   if (orders.length === filter.limit) {
