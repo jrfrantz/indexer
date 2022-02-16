@@ -118,6 +118,28 @@ export const getExecuteListOptions: RouteOptions = {
         return { error: "Unknown contract" };
       }
 
+      const steps = [
+        {
+          action: "Initialize wallet",
+          description:
+            "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
+        },
+        {
+          action: "Approve NFT contract",
+          description:
+            "Each NFT collection you want to trade requires a one-time approval transaction",
+        },
+        {
+          action: "Authorize listing",
+          description: "A free off-chain signature to create the listing",
+        },
+        {
+          action: "Submit listing",
+          description:
+            "Post your listing to the order book for others to discover it",
+        },
+      ];
+
       // Step 2: Check that the taker has registered a user proxy
       const proxyRegistry = new Sdk.WyvernV2.Helpers.ProxyRegistry(
         baseProvider,
@@ -131,27 +153,23 @@ export const getExecuteListOptions: RouteOptions = {
         return {
           steps: [
             {
-              action: "Proxy registration",
-              description: "Proxy registration",
+              ...steps[0],
               status: "incomplete",
               kind: "transaction",
               data: proxyRegistrationTx,
             },
             {
-              action: "Approving token",
-              description: "Approving token",
+              ...steps[1],
               status: "incomplete",
               kind: "transaction",
             },
             {
-              action: "Signing order",
-              description: "Signing order",
+              ...steps[2],
               status: "incomplete",
               kind: "signature",
             },
             {
-              action: "Relaying order",
-              description: "Relaying order",
+              ...steps[3],
               status: "incomplete",
               kind: "request",
             },
@@ -184,27 +202,23 @@ export const getExecuteListOptions: RouteOptions = {
         return {
           steps: [
             {
-              action: "Proxy registration",
-              description: "Proxy registration",
+              ...steps[0],
               status: "complete",
               kind: "transaction",
             },
             {
-              action: "Approving token",
-              description: "Approving token",
+              ...steps[1],
               status: "incomplete",
               kind: "transaction",
               data: approvalTx,
             },
             {
-              action: "Signing order",
-              description: "Signing order",
+              ...steps[2],
               status: "incomplete",
               kind: "signature",
             },
             {
-              action: "Relaying order",
-              description: "Relaying order",
+              ...steps[3],
               status: "incomplete",
               kind: "request",
             },
@@ -217,20 +231,17 @@ export const getExecuteListOptions: RouteOptions = {
       return {
         steps: [
           {
-            action: "Proxy registration",
-            description: "Proxy registration",
+            ...steps[0],
             status: "complete",
             kind: "transaction",
           },
           {
-            action: "Approving proxy",
-            description: "Approving proxy",
+            ...steps[1],
             status: "complete",
             kind: "transaction",
           },
           {
-            action: "Signing order",
-            description: "Signing order",
+            ...steps[2],
             status: hasSignature ? "complete" : "incomplete",
             kind: "signature",
             data: hasSignature
@@ -241,8 +252,7 @@ export const getExecuteListOptions: RouteOptions = {
                 },
           },
           {
-            action: "Relaying order",
-            description: "Relaying order",
+            ...steps[3],
             status: "incomplete",
             kind: "request",
             data: !hasSignature

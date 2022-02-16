@@ -69,18 +69,28 @@ export const getExecuteCancelOptions: RouteOptions = {
       const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
       const cancelTx = exchange.cancelTransaction(query.maker, sdkOrder);
 
+      const steps = [
+        {
+          action: "Submit cancellation",
+          description:
+            "To cancel this listing you must confirm the transaction and pay the gas fee",
+        },
+        {
+          action: "Confirmation",
+          description: "Verify that the listing was successfully cancelled",
+        },
+      ];
+
       return {
         steps: [
           {
-            action: "Cancel order",
-            description: "Cancel order",
+            ...steps[0],
             status: "incomplete",
             kind: "transaction",
             data: cancelTx,
           },
           {
-            action: "Confirmation",
-            description: "Confirmation",
+            ...steps[1],
             status: "incomplete",
             kind: "confirmation",
             data: {

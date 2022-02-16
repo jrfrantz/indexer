@@ -118,6 +118,33 @@ export const getExecuteSellOptions: RouteOptions = {
         return { error: "Unknown contract" };
       }
 
+      const steps = [
+        {
+          action: "Initialize wallet",
+          description:
+            "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
+        },
+        {
+          action: "Approve WETH contract",
+          description:
+            "A one-time setup transaction to enable trading with WETH",
+        },
+        {
+          action: "Approve NFT contract",
+          description:
+            "Each NFT collection you want to trade requires a one-time approval transaction",
+        },
+        {
+          action: "Accept offer",
+          description:
+            "To sell this item you must confirm the transaction and pay the gas fee",
+        },
+        {
+          action: "Confirmation",
+          description: "Verify that the offer was successfully accepted",
+        },
+      ];
+
       // Step 2: Check that the taker has registered a user proxy
       const proxyRegistry = new Sdk.WyvernV2.Helpers.ProxyRegistry(
         baseProvider,
@@ -131,33 +158,28 @@ export const getExecuteSellOptions: RouteOptions = {
         return {
           steps: [
             {
-              action: "Proxy registration",
-              description: "Proxy registration",
+              ...steps[0],
               status: "incomplete",
               kind: "transaction",
               data: proxyRegistrationTx,
             },
             {
-              action: "Approving token",
-              description: "Approving token",
+              ...steps[1],
               status: "incomplete",
               kind: "transaction",
             },
             {
-              action: "Approving WETH",
-              description: "Approving WETH",
+              ...steps[2],
               status: "incomplete",
               kind: "transaction",
             },
             {
-              action: "Relaying order",
-              description: "Relaying order",
+              ...steps[3],
               status: "incomplete",
               kind: "transaction",
             },
             {
-              action: "Confirmation",
-              description: "Confirmation",
+              ...steps[4],
               status: "incomplete",
               kind: "confirmation",
             },
@@ -224,35 +246,30 @@ export const getExecuteSellOptions: RouteOptions = {
       return {
         steps: [
           {
-            action: "Proxy registration",
-            description: "Proxy registration",
+            ...steps[0],
             status: "complete",
             kind: "transaction",
           },
           {
-            action: "Approving WETH",
-            description: "Approving WETH",
+            ...steps[1],
             status: isWethApproved ? "complete" : "incomplete",
             kind: "transaction",
             data: isWethApproved ? undefined : wethApprovalTx,
           },
           {
-            action: "Approving proxy",
-            description: "Approving proxy",
+            ...steps[2],
             status: isApproved ? "complete" : "incomplete",
             kind: "transaction",
             data: isApproved ? undefined : approvalTx,
           },
           {
-            action: "Relaying order",
-            description: "Relaying order",
+            ...steps[3],
             status: "incomplete",
             kind: "transaction",
             data: fillTxData,
           },
           {
-            action: "Confirmation",
-            description: "Confirmation",
+            ...steps[4],
             status: "incomplete",
             kind: "confirmation",
             data: {
