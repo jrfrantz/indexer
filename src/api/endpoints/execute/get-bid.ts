@@ -190,6 +190,7 @@ export const getExecuteBidOptions: RouteOptions = {
           },
         ],
         query: {
+          ...query,
           listingTime: order.params.listingTime,
           expirationTime: order.params.expirationTime,
           salt: order.params.salt,
