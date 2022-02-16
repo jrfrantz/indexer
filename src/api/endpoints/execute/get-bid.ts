@@ -124,25 +124,43 @@ export const getExecuteBidOptions: RouteOptions = {
 
       const hasSignature = query.v && query.r && query.s;
 
+      const steps = [
+        {
+          action: "Wrapping ETH",
+          description: "Wrapping ETH required to make offer",
+        },
+        {
+          action: "Approve WETH contract",
+          description:
+            "A one-time setup transaction to enable trading with WETH",
+        },
+        {
+          action: "Authorize offer",
+          description: "A free off-chain signature to create the offer",
+        },
+        {
+          action: "Submit offer",
+          description:
+            "Post your offer to the order book for others to discover it",
+        },
+      ];
+
       return {
         steps: [
           {
-            action: "Wrapping ETH",
-            description: "Wrapping ETH",
+            ...steps[0],
             status: ethWrapTransaction ? "incomplete" : "complete",
             kind: "transaction",
             data: ethWrapTransaction,
           },
           {
-            action: "Approving WETH",
-            description: "Approving WETH",
+            ...steps[1],
             status: isWethApproved ? "complete" : "incomplete",
             kind: "transaction",
             data: isWethApproved ? undefined : wethApprovalTx,
           },
           {
-            action: "Signing order",
-            description: "Signing order",
+            ...steps[2],
             status: hasSignature ? "complete" : "incomplete",
             kind: "signature",
             data: hasSignature
@@ -153,8 +171,7 @@ export const getExecuteBidOptions: RouteOptions = {
                 },
           },
           {
-            action: "Relaying order",
-            description: "Relaying order",
+            ...steps[3],
             status: "incomplete",
             kind: "request",
             data: !hasSignature

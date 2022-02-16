@@ -103,18 +103,28 @@ export const getExecuteBuyOptions: RouteOptions = {
         order
       );
 
+      const steps = [
+        {
+          action: "Confirm purchase",
+          description:
+            "To purchase this item you must confirm the transaction and pay the gas fee",
+        },
+        {
+          action: "Confirmation",
+          description: "Verify that the item was successfully purchased",
+        },
+      ];
+
       return {
         steps: [
           {
-            action: "Fill order",
-            description: "Fill order",
+            ...steps[0],
             status: "incomplete",
             kind: "transaction",
             data: fillTxData,
           },
           {
-            action: "Confirmation",
-            description: "Confirmation",
+            ...steps[1],
             status: "incomplete",
             kind: "confirmation",
             data: {
