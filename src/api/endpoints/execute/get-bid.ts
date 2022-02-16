@@ -1,3 +1,4 @@
+import { AddressZero } from "@ethersproject/constants";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
@@ -28,6 +29,12 @@ export const getExecuteBidOptions: RouteOptions = {
       orderbook: Joi.string()
         .valid("reservoir", "opensea")
         .default("reservoir"),
+      disableRoyalties: Joi.boolean().default(false),
+      fee: Joi.alternatives(Joi.string(), Joi.number()),
+      feeRecipient: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-f0-9]{40}$/)
+        .disallow(AddressZero),
       v: Joi.number(),
       r: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
       s: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
@@ -68,6 +75,11 @@ export const getExecuteBidOptions: RouteOptions = {
     const query = request.query as any;
 
     try {
+      if (!query.disableRoyalties) {
+        query.fee = undefined;
+        query.feeRecipient = undefined;
+      }
+
       const order = await wyvernV2.buildOrder({
         ...query,
         side: "buy",
@@ -148,38 +160,37 @@ export const getExecuteBidOptions: RouteOptions = {
             data: !hasSignature
               ? undefined
               : {
-                  endpoint: "/orders",
+                  endpoint: "/order",
                   method: "POST",
                   body: {
-                    orders: [
-                      {
-                        kind: "wyvern-v2",
-                        orderbook: query.orderbook,
-                        data: {
-                          ...order.params,
-                          v: query.v,
-                          r: query.r,
-                          s: query.s,
-                          contract: query.contract,
-                          tokenId: query.tokenId,
-                        },
-                        attribute:
-                          query.collection &&
-                          query.attributeKey &&
-                          query.attributeValue
-                            ? {
-                                collection: query.collection,
-                                key: query.attributeKey,
-                                value: query.attributeValue,
-                              }
-                            : undefined,
+                    order: {
+                      kind: "wyvern-v2",
+                      orderbook: query.orderbook,
+                      data: {
+                        ...order.params,
+                        v: query.v,
+                        r: query.r,
+                        s: query.s,
+                        contract: query.contract,
+                        tokenId: query.tokenId,
                       },
-                    ],
+                      attribute:
+                        query.collection &&
+                        query.attributeKey &&
+                        query.attributeValue
+                          ? {
+                              collection: query.collection,
+                              key: query.attributeKey,
+                              value: query.attributeValue,
+                            }
+                          : undefined,
+                    },
                   },
                 },
           },
         ],
         query: {
+          ...query,
           listingTime: order.params.listingTime,
           expirationTime: order.params.expirationTime,
           salt: order.params.salt,

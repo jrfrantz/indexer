@@ -27,6 +27,12 @@ export const getExecuteListOptions: RouteOptions = {
       orderbook: Joi.string()
         .valid("reservoir", "opensea")
         .default("reservoir"),
+      disableRoyalties: Joi.boolean().default(false),
+      fee: Joi.alternatives(Joi.string(), Joi.number()),
+      feeRecipient: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-f0-9]{40}$/)
+        .disallow(AddressZero),
       v: Joi.number(),
       r: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
       s: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
@@ -67,6 +73,11 @@ export const getExecuteListOptions: RouteOptions = {
     const query = request.query as any;
 
     try {
+      if (!query.disableRoyalties) {
+        query.fee = undefined;
+        query.feeRecipient = undefined;
+      }
+
       const order = await wyvernV2.buildOrder({
         ...query,
         side: "sell",
@@ -169,6 +180,38 @@ export const getExecuteListOptions: RouteOptions = {
         return { error: "Unknown contract" };
       }
 
+      if (!isApproved) {
+        return {
+          steps: [
+            {
+              action: "Proxy registration",
+              description: "Proxy registration",
+              status: "complete",
+              kind: "transaction",
+            },
+            {
+              action: "Approving token",
+              description: "Approving token",
+              status: "incomplete",
+              kind: "transaction",
+              data: approvalTx,
+            },
+            {
+              action: "Signing order",
+              description: "Signing order",
+              status: "incomplete",
+              kind: "signature",
+            },
+            {
+              action: "Relaying order",
+              description: "Relaying order",
+              status: "incomplete",
+              kind: "request",
+            },
+          ],
+        };
+      }
+
       const hasSignature = query.v && query.r && query.s;
 
       return {
@@ -182,9 +225,8 @@ export const getExecuteListOptions: RouteOptions = {
           {
             action: "Approving proxy",
             description: "Approving proxy",
-            status: isApproved ? "complete" : "incomplete",
+            status: "complete",
             kind: "transaction",
-            data: isApproved ? undefined : approvalTx,
           },
           {
             action: "Signing order",
@@ -206,28 +248,27 @@ export const getExecuteListOptions: RouteOptions = {
             data: !hasSignature
               ? undefined
               : {
-                  endpoint: "/orders",
+                  endpoint: "/order",
                   method: "POST",
                   body: {
-                    orders: [
-                      {
-                        kind: "wyvern-v2",
-                        orderbook: query.orderbook,
-                        data: {
-                          ...order.params,
-                          v: query.v,
-                          r: query.r,
-                          s: query.s,
-                          contract: query.contract,
-                          tokenId: query.tokenId,
-                        },
+                    order: {
+                      kind: "wyvern-v2",
+                      orderbook: query.orderbook,
+                      data: {
+                        ...order.params,
+                        v: query.v,
+                        r: query.r,
+                        s: query.s,
+                        contract: query.contract,
+                        tokenId: query.tokenId,
                       },
-                    ],
+                    },
                   },
                 },
           },
         ],
         query: {
+          ...query,
           listingTime: order.params.listingTime,
           expirationTime: order.params.expirationTime,
           salt: order.params.salt,
