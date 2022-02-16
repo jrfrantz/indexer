@@ -519,6 +519,20 @@ export const saveOrders = async (
             tokenIds: tokens.map(({ token_id }) => token_id),
           });
 
+          const columns = new pgp.helpers.ColumnSet(
+            ["token_set_id", "contract", "token_id"],
+            {
+              table: "token_sets_tokens",
+            }
+          );
+          const values = pgp.helpers.values(
+            tokens.map((token) => ({
+              ...token,
+              token_set_id: tokenSetInfo!.id,
+            })),
+            columns
+          );
+
           // Insert matching tokens in the token set
           queries.push({
             query: `
@@ -526,27 +540,9 @@ export const saveOrders = async (
                 "token_set_id",
                 "contract",
                 "token_id"
-              )
-              (
-                select
-                  $/tokenSetId/,
-                  "t"."contract",
-                  "t"."token_id"
-                from "tokens" "t"
-                join "attributes" "a"
-                  on "t"."contract" = "a"."contract"
-                  and "t"."token_id" = "a"."token_id"
-                where "t"."collection_id" = $/collection/
-                  and "a"."key" = $/attributeKey/
-                  and "a"."value" = $/attributeValue/
-              ) on conflict do nothing
+              ) values ${values}
+               on conflict do nothing
             `,
-            values: {
-              tokenSetId: tokenSetInfo.id,
-              collection: orderInfo.attribute.collection,
-              attributeKey: orderInfo.attribute.key,
-              attributeValue: orderInfo.attribute.value,
-            },
           });
         }
 
