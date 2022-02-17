@@ -27,7 +27,7 @@ export const getOrdersOptions: RouteOptions = {
       includeInvalid: Joi.bool(),
       side: Joi.string().lowercase().valid("sell", "buy"),
       offset: Joi.number().integer().min(0).default(0),
-      limit: Joi.number().integer().min(1).max(20).default(20),
+      limit: Joi.number().integer().min(1).max(100).default(20),
     })
       .or("contract", "collection", "maker", "hash")
       .oxor("contract", "collection", "hash")
