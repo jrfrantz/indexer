@@ -10,11 +10,12 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     },
   });
 
-  pgm.createIndex("orders", ["kind", "maker", "nonce"], {
-    name: "orders_side_created_at_hash",
-    where: `"status" = 'valid' or "status" = 'no-balance'`,
-    concurrently: true,
-  });
+  // To run separately from the migration:
+  // pgm.createIndex("orders", ["kind", "maker", "nonce"], {
+  //   name: "orders_side_created_at_hash",
+  //   where: `"status" = 'valid' or "status" = 'no-balance'`,
+  //   concurrently: true,
+  // });
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
