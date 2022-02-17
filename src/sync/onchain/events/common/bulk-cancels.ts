@@ -55,7 +55,7 @@ export const addBulkCancelEvents = async (
             "log_index"
           ) values ${pgp.helpers.values(values, columns)}
           on conflict do nothing
-          returning "min_nonce"
+          returning "maker", "min_nonce"
         )
         update "orders" set "status" = 'cancelled' from "x"
         where "kind" = '${orderKind}'
