@@ -8,7 +8,7 @@ import { db } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
-import * as wyvernV2 from "@/orders/wyvern-v2";
+import * as wyvernV23 from "@/orders/wyvern-v2.3";
 
 export const getExecuteListOptions: RouteOptions = {
   description: "Get steps required to build a sell order.",
@@ -78,10 +78,10 @@ export const getExecuteListOptions: RouteOptions = {
         query.feeRecipient = undefined;
       }
 
-      const order = await wyvernV2.buildOrder({
+      const order = await wyvernV23.buildOrder({
         ...query,
         side: "sell",
-      } as wyvernV2.BuildOrderOptions);
+      } as wyvernV23.BuildOrderOptions);
 
       if (!order) {
         return { error: "Could not generate order" };
@@ -141,7 +141,7 @@ export const getExecuteListOptions: RouteOptions = {
       ];
 
       // Step 2: Check that the taker has registered a user proxy
-      const proxyRegistry = new Sdk.WyvernV2.Helpers.ProxyRegistry(
+      const proxyRegistry = new Sdk.WyvernV23.Helpers.ProxyRegistry(
         baseProvider,
         config.chainId
       );
@@ -244,12 +244,7 @@ export const getExecuteListOptions: RouteOptions = {
             ...steps[2],
             status: hasSignature ? "complete" : "incomplete",
             kind: "signature",
-            data: hasSignature
-              ? undefined
-              : {
-                  message: order.hash(),
-                  signatureKind: "eip191",
-                },
+            data: hasSignature ? undefined : order.getSignatureData(),
           },
           {
             ...steps[3],
@@ -262,7 +257,7 @@ export const getExecuteListOptions: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: "wyvern-v2",
+                      kind: "wyvern-v2.3",
                       orderbook: query.orderbook,
                       data: {
                         ...order.params,

@@ -61,79 +61,160 @@ export const getExecuteBuyOptions: RouteOptions = {
         return { error: "No matching order" };
       }
 
-      const order = new Sdk.WyvernV2.Order(config.chainId, bestOrder.rawData);
+      if (bestOrder.kind === "wyvern-v2") {
+        const order = new Sdk.WyvernV2.Order(config.chainId, bestOrder.rawData);
 
-      const buildMatchingArgs: any[] = [];
-      if (
-        order.params.kind?.endsWith("token-range") ||
-        order.params.kind?.endsWith("contract-wide")
-      ) {
-        // Pass the token id to match
-        buildMatchingArgs.push(query.tokenId);
-      }
-      if (order.params.kind?.endsWith("token-list")) {
-        // Pass the token id to match
-        buildMatchingArgs.push(query.tokenId);
+        const buildMatchingArgs: any[] = [];
+        if (
+          order.params.kind?.endsWith("token-range") ||
+          order.params.kind?.endsWith("contract-wide")
+        ) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
+        }
+        if (order.params.kind?.endsWith("token-list")) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
 
-        const tokens: { token_id: string }[] = await db.manyOrNone(
-          `
+          const tokens: { token_id: string }[] = await db.manyOrNone(
+            `
+              select "tst"."token_id" from "token_sets_tokens" "tst"
+              where "tst"."token_set_id" = $/tokenSetId/
+            `,
+            { tokenSetId: bestOrder.tokenSetId }
+          );
+
+          // Pass the list of tokens of the underlying filled order
+          buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
+        }
+
+        // Step 1: Check the taker's balance
+        const balance = await baseProvider.getBalance(query.taker);
+        if (bn(balance).lt(order.params.basePrice)) {
+          return { error: "Not enough ETH balance" };
+        }
+
+        // Step 2: Create matching order
+        const buyOrder = order.buildMatching(query.taker, buildMatchingArgs);
+
+        const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
+        const fillTxData = exchange.matchTransaction(
+          query.taker,
+          buyOrder,
+          order
+        );
+
+        const steps = [
+          {
+            action: "Confirm purchase",
+            description:
+              "To purchase this item you must confirm the transaction and pay the gas fee",
+          },
+          {
+            action: "Confirmation",
+            description: "Verify that the item was successfully purchased",
+          },
+        ];
+
+        return {
+          steps: [
+            {
+              ...steps[0],
+              status: "incomplete",
+              kind: "transaction",
+              data: fillTxData,
+            },
+            {
+              ...steps[1],
+              status: "incomplete",
+              kind: "confirmation",
+              data: {
+                endpoint: `/orders/executed?hash=${order.prefixHash()}`,
+                method: "GET",
+              },
+            },
+          ],
+        };
+      } else if (bestOrder.kind === "wyvern-v2.3") {
+        const order = new Sdk.WyvernV23.Order(
+          config.chainId,
+          bestOrder.rawData
+        );
+
+        const buildMatchingArgs: any[] = [];
+        if (
+          order.params.kind?.endsWith("token-range") ||
+          order.params.kind?.endsWith("contract-wide")
+        ) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
+        }
+        if (order.params.kind?.endsWith("token-list")) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
+
+          const tokens: { token_id: string }[] = await db.manyOrNone(
+            `
             select "tst"."token_id" from "token_sets_tokens" "tst"
             where "tst"."token_set_id" = $/tokenSetId/
           `,
-          { tokenSetId: bestOrder.tokenSetId }
+            { tokenSetId: bestOrder.tokenSetId }
+          );
+
+          // Pass the list of tokens of the underlying filled order
+          buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
+        }
+
+        // Step 1: Check the taker's balance
+        const balance = await baseProvider.getBalance(query.taker);
+        if (bn(balance).lt(order.params.basePrice)) {
+          return { error: "Not enough ETH balance" };
+        }
+
+        // Step 2: Create matching order
+        const buyOrder = order.buildMatching(query.taker, buildMatchingArgs);
+
+        const exchange = new Sdk.WyvernV23.Exchange(config.chainId);
+        const fillTxData = exchange.matchTransaction(
+          query.taker,
+          buyOrder,
+          order
         );
 
-        // Pass the list of tokens of the underlying filled order
-        buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
-      }
-
-      // Step 1: Check the taker's balance
-      const balance = await baseProvider.getBalance(query.taker);
-      if (bn(balance).lt(order.params.basePrice)) {
-        return { error: "Not enough ETH balance" };
-      }
-
-      // Step 2: Create matching order
-      const buyOrder = order.buildMatching(query.taker, buildMatchingArgs);
-
-      const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
-      const fillTxData = exchange.matchTransaction(
-        query.taker,
-        buyOrder,
-        order
-      );
-
-      const steps = [
-        {
-          action: "Confirm purchase",
-          description:
-            "To purchase this item you must confirm the transaction and pay the gas fee",
-        },
-        {
-          action: "Confirmation",
-          description: "Verify that the item was successfully purchased",
-        },
-      ];
-
-      return {
-        steps: [
+        const steps = [
           {
-            ...steps[0],
-            status: "incomplete",
-            kind: "transaction",
-            data: fillTxData,
+            action: "Confirm purchase",
+            description:
+              "To purchase this item you must confirm the transaction and pay the gas fee",
           },
           {
-            ...steps[1],
-            status: "incomplete",
-            kind: "confirmation",
-            data: {
-              endpoint: `/orders/executed?hash=${order.prefixHash()}`,
-              method: "GET",
+            action: "Confirmation",
+            description: "Verify that the item was successfully purchased",
+          },
+        ];
+
+        return {
+          steps: [
+            {
+              ...steps[0],
+              status: "incomplete",
+              kind: "transaction",
+              data: fillTxData,
             },
-          },
-        ],
-      };
+            {
+              ...steps[1],
+              status: "incomplete",
+              kind: "confirmation",
+              data: {
+                endpoint: `/orders/executed?hash=${order.prefixHash()}`,
+                method: "GET",
+              },
+            },
+          ],
+        };
+      }
+
+      return { error: "No matching order" };
     } catch (error) {
       logger.error("get_execute_buy_handler", `Handler failure: ${error}`);
       throw error;

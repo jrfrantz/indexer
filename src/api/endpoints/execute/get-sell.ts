@@ -61,224 +61,450 @@ export const getExecuteSellOptions: RouteOptions = {
         return { error: "No matching order" };
       }
 
-      const order = new Sdk.WyvernV2.Order(config.chainId, bestOrder.rawData);
+      if (bestOrder.kind === "wyvern-v2") {
+        const order = new Sdk.WyvernV2.Order(config.chainId, bestOrder.rawData);
 
-      const buildMatchingArgs: any[] = [];
-      if (
-        order.params.kind?.endsWith("token-range") ||
-        order.params.kind?.endsWith("contract-wide")
-      ) {
-        // Pass the token id to match
-        buildMatchingArgs.push(query.tokenId);
-      }
-      if (order.params.kind?.endsWith("token-list")) {
-        // Pass the token id to match
-        buildMatchingArgs.push(query.tokenId);
+        const buildMatchingArgs: any[] = [];
+        if (
+          order.params.kind?.endsWith("token-range") ||
+          order.params.kind?.endsWith("contract-wide")
+        ) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
+        }
+        if (order.params.kind?.endsWith("token-list")) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
 
-        const tokens: { token_id: string }[] = await db.manyOrNone(
-          `
+          const tokens: { token_id: string }[] = await db.manyOrNone(
+            `
             select "tst"."token_id" from "token_sets_tokens" "tst"
             where "tst"."token_set_id" = $/tokenSetId/
           `,
-          { tokenSetId: bestOrder.tokenSetId }
-        );
+            { tokenSetId: bestOrder.tokenSetId }
+          );
 
-        // Pass the list of tokens of the underlying filled order
-        buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
-      }
+          // Pass the list of tokens of the underlying filled order
+          buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
+        }
 
-      // Step 1: Check that the taker owns the token
-      const { kind } = await db.one(
-        `
+        // Step 1: Check that the taker owns the token
+        const { kind } = await db.one(
+          `
             select "c"."kind" from "contracts" "c"
             where "c"."address" = $/address/
           `,
-        { address: order.params.target }
-      );
-
-      if (kind === "erc721") {
-        const contract = new Sdk.Common.Helpers.Erc721(
-          baseProvider,
-          order.params.target
+          { address: order.params.target }
         );
-        const owner = await contract.getOwner(query.tokenId);
-        if (owner.toLowerCase() !== query.taker) {
-          return { error: "No ownership" };
+
+        if (kind === "erc721") {
+          const contract = new Sdk.Common.Helpers.Erc721(
+            baseProvider,
+            order.params.target
+          );
+          const owner = await contract.getOwner(query.tokenId);
+          if (owner.toLowerCase() !== query.taker) {
+            return { error: "No ownership" };
+          }
+        } else if (kind === "erc1155") {
+          const contract = new Sdk.Common.Helpers.Erc1155(
+            baseProvider,
+            order.params.target
+          );
+          const balance = await contract.getBalance(query.taker, query.tokenId);
+          if (bn(balance).isZero()) {
+            return { error: "No ownership" };
+          }
+        } else {
+          return { error: "Unknown contract" };
         }
-      } else if (kind === "erc1155") {
-        const contract = new Sdk.Common.Helpers.Erc1155(
+
+        const steps = [
+          {
+            action: "Initialize wallet",
+            description:
+              "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
+          },
+          {
+            action: "Approve WETH contract",
+            description:
+              "A one-time setup transaction to enable trading with WETH",
+          },
+          {
+            action: "Approve NFT contract",
+            description:
+              "Each NFT collection you want to trade requires a one-time approval transaction",
+          },
+          {
+            action: "Accept offer",
+            description:
+              "To sell this item you must confirm the transaction and pay the gas fee",
+          },
+          {
+            action: "Confirmation",
+            description: "Verify that the offer was successfully accepted",
+          },
+        ];
+
+        // Step 2: Check that the taker has registered a user proxy
+        const proxyRegistry = new Sdk.WyvernV2.Helpers.ProxyRegistry(
           baseProvider,
-          order.params.target
+          config.chainId
         );
-        const balance = await contract.getBalance(query.taker, query.tokenId);
-        if (bn(balance).isZero()) {
-          return { error: "No ownership" };
+        const proxy = await proxyRegistry.getProxy(query.taker);
+        if (proxy === AddressZero) {
+          const proxyRegistrationTx = proxyRegistry.registerProxyTransaction(
+            query.taker
+          );
+          return {
+            steps: [
+              {
+                ...steps[0],
+                status: "incomplete",
+                kind: "transaction",
+                data: proxyRegistrationTx,
+              },
+              {
+                ...steps[1],
+                status: "incomplete",
+                kind: "transaction",
+              },
+              {
+                ...steps[2],
+                status: "incomplete",
+                kind: "transaction",
+              },
+              {
+                ...steps[3],
+                status: "incomplete",
+                kind: "transaction",
+              },
+              {
+                ...steps[4],
+                status: "incomplete",
+                kind: "confirmation",
+              },
+            ],
+          };
         }
-      } else {
-        return { error: "Unknown contract" };
-      }
 
-      const steps = [
-        {
-          action: "Initialize wallet",
-          description:
-            "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
-        },
-        {
-          action: "Approve WETH contract",
-          description:
-            "A one-time setup transaction to enable trading with WETH",
-        },
-        {
-          action: "Approve NFT contract",
-          description:
-            "Each NFT collection you want to trade requires a one-time approval transaction",
-        },
-        {
-          action: "Accept offer",
-          description:
-            "To sell this item you must confirm the transaction and pay the gas fee",
-        },
-        {
-          action: "Confirmation",
-          description: "Verify that the offer was successfully accepted",
-        },
-      ];
+        // Step 3: Check the taker's approval
+        let isApproved: boolean;
+        let approvalTx;
+        if (kind === "erc721") {
+          const contract = new Sdk.Common.Helpers.Erc721(
+            baseProvider,
+            order.params.target
+          );
+          isApproved = await contract.isApproved(query.taker, proxy);
+          approvalTx = contract.approveTransaction(query.taker, proxy);
+        } else if (kind === "erc1155") {
+          const contract = new Sdk.Common.Helpers.Erc1155(
+            baseProvider,
+            order.params.target
+          );
+          isApproved = await contract.isApproved(query.taker, proxy);
+          approvalTx = contract.approveTransaction(query.taker, proxy);
+        } else {
+          return { error: "Unknown contract" };
+        }
 
-      // Step 2: Check that the taker has registered a user proxy
-      const proxyRegistry = new Sdk.WyvernV2.Helpers.ProxyRegistry(
-        baseProvider,
-        config.chainId
-      );
-      const proxy = await proxyRegistry.getProxy(query.taker);
-      if (proxy === AddressZero) {
-        const proxyRegistrationTx = proxyRegistry.registerProxyTransaction(
-          query.taker
+        const wethContract = new Sdk.Common.Helpers.Weth(
+          baseProvider,
+          config.chainId
         );
+        const wethApproval = await wethContract.getAllowance(
+          query.taker,
+          Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
+        );
+
+        let isWethApproved = true;
+        let wethApprovalTx;
+        if (
+          bn(wethApproval).lt(
+            bn(order.params.basePrice)
+              .mul(order.params.takerRelayerFee)
+              .div(10000)
+          )
+        ) {
+          isWethApproved = false;
+          wethApprovalTx = wethContract.approveTransaction(
+            query.taker,
+            Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
+          );
+        }
+
+        // Step 4: Create matching order
+        const sellOrder = order.buildMatching(query.taker, buildMatchingArgs);
+
+        const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
+        const fillTxData = exchange.matchTransaction(
+          query.taker,
+          order,
+          sellOrder
+        );
+
         return {
           steps: [
             {
               ...steps[0],
-              status: "incomplete",
+              status: "complete",
               kind: "transaction",
-              data: proxyRegistrationTx,
             },
             {
               ...steps[1],
-              status: "incomplete",
+              status: isWethApproved ? "complete" : "incomplete",
               kind: "transaction",
+              data: isWethApproved ? undefined : wethApprovalTx,
             },
             {
               ...steps[2],
-              status: "incomplete",
+              status: isApproved ? "complete" : "incomplete",
               kind: "transaction",
+              data: isApproved ? undefined : approvalTx,
             },
             {
               ...steps[3],
               status: "incomplete",
               kind: "transaction",
+              data: fillTxData,
             },
             {
               ...steps[4],
               status: "incomplete",
               kind: "confirmation",
+              data: {
+                endpoint: `/orders/executed?hash=${order.prefixHash()}`,
+                method: "GET",
+              },
+            },
+          ],
+        };
+      } else if (bestOrder.kind === "wyvern-v2.3") {
+        const order = new Sdk.WyvernV23.Order(
+          config.chainId,
+          bestOrder.rawData
+        );
+
+        const buildMatchingArgs: any[] = [];
+        if (
+          order.params.kind?.endsWith("token-range") ||
+          order.params.kind?.endsWith("contract-wide")
+        ) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
+        }
+        if (order.params.kind?.endsWith("token-list")) {
+          // Pass the token id to match
+          buildMatchingArgs.push(query.tokenId);
+
+          const tokens: { token_id: string }[] = await db.manyOrNone(
+            `
+            select "tst"."token_id" from "token_sets_tokens" "tst"
+            where "tst"."token_set_id" = $/tokenSetId/
+          `,
+            { tokenSetId: bestOrder.tokenSetId }
+          );
+
+          // Pass the list of tokens of the underlying filled order
+          buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
+        }
+
+        // Step 1: Check that the taker owns the token
+        const { kind } = await db.one(
+          `
+            select "c"."kind" from "contracts" "c"
+            where "c"."address" = $/address/
+          `,
+          { address: order.params.target }
+        );
+
+        if (kind === "erc721") {
+          const contract = new Sdk.Common.Helpers.Erc721(
+            baseProvider,
+            order.params.target
+          );
+          const owner = await contract.getOwner(query.tokenId);
+          if (owner.toLowerCase() !== query.taker) {
+            return { error: "No ownership" };
+          }
+        } else if (kind === "erc1155") {
+          const contract = new Sdk.Common.Helpers.Erc1155(
+            baseProvider,
+            order.params.target
+          );
+          const balance = await contract.getBalance(query.taker, query.tokenId);
+          if (bn(balance).isZero()) {
+            return { error: "No ownership" };
+          }
+        } else {
+          return { error: "Unknown contract" };
+        }
+
+        const steps = [
+          {
+            action: "Initialize wallet",
+            description:
+              "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
+          },
+          {
+            action: "Approve WETH contract",
+            description:
+              "A one-time setup transaction to enable trading with WETH",
+          },
+          {
+            action: "Approve NFT contract",
+            description:
+              "Each NFT collection you want to trade requires a one-time approval transaction",
+          },
+          {
+            action: "Accept offer",
+            description:
+              "To sell this item you must confirm the transaction and pay the gas fee",
+          },
+          {
+            action: "Confirmation",
+            description: "Verify that the offer was successfully accepted",
+          },
+        ];
+
+        // Step 2: Check that the taker has registered a user proxy
+        const proxyRegistry = new Sdk.WyvernV23.Helpers.ProxyRegistry(
+          baseProvider,
+          config.chainId
+        );
+        const proxy = await proxyRegistry.getProxy(query.taker);
+        if (proxy === AddressZero) {
+          const proxyRegistrationTx = proxyRegistry.registerProxyTransaction(
+            query.taker
+          );
+          return {
+            steps: [
+              {
+                ...steps[0],
+                status: "incomplete",
+                kind: "transaction",
+                data: proxyRegistrationTx,
+              },
+              {
+                ...steps[1],
+                status: "incomplete",
+                kind: "transaction",
+              },
+              {
+                ...steps[2],
+                status: "incomplete",
+                kind: "transaction",
+              },
+              {
+                ...steps[3],
+                status: "incomplete",
+                kind: "transaction",
+              },
+              {
+                ...steps[4],
+                status: "incomplete",
+                kind: "confirmation",
+              },
+            ],
+          };
+        }
+
+        // Step 3: Check the taker's approval
+        let isApproved: boolean;
+        let approvalTx;
+        if (kind === "erc721") {
+          const contract = new Sdk.Common.Helpers.Erc721(
+            baseProvider,
+            order.params.target
+          );
+          isApproved = await contract.isApproved(query.taker, proxy);
+          approvalTx = contract.approveTransaction(query.taker, proxy);
+        } else if (kind === "erc1155") {
+          const contract = new Sdk.Common.Helpers.Erc1155(
+            baseProvider,
+            order.params.target
+          );
+          isApproved = await contract.isApproved(query.taker, proxy);
+          approvalTx = contract.approveTransaction(query.taker, proxy);
+        } else {
+          return { error: "Unknown contract" };
+        }
+
+        const wethContract = new Sdk.Common.Helpers.Weth(
+          baseProvider,
+          config.chainId
+        );
+        const wethApproval = await wethContract.getAllowance(
+          query.taker,
+          Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
+        );
+
+        let isWethApproved = true;
+        let wethApprovalTx;
+        if (
+          bn(wethApproval).lt(
+            bn(order.params.basePrice)
+              .mul(order.params.takerRelayerFee)
+              .div(10000)
+          )
+        ) {
+          isWethApproved = false;
+          wethApprovalTx = wethContract.approveTransaction(
+            query.taker,
+            Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
+          );
+        }
+
+        // Step 4: Create matching order
+        const sellOrder = order.buildMatching(query.taker, buildMatchingArgs);
+
+        const exchange = new Sdk.WyvernV23.Exchange(config.chainId);
+        const fillTxData = exchange.matchTransaction(
+          query.taker,
+          order,
+          sellOrder
+        );
+
+        return {
+          steps: [
+            {
+              ...steps[0],
+              status: "complete",
+              kind: "transaction",
+            },
+            {
+              ...steps[1],
+              status: isWethApproved ? "complete" : "incomplete",
+              kind: "transaction",
+              data: isWethApproved ? undefined : wethApprovalTx,
+            },
+            {
+              ...steps[2],
+              status: isApproved ? "complete" : "incomplete",
+              kind: "transaction",
+              data: isApproved ? undefined : approvalTx,
+            },
+            {
+              ...steps[3],
+              status: "incomplete",
+              kind: "transaction",
+              data: fillTxData,
+            },
+            {
+              ...steps[4],
+              status: "incomplete",
+              kind: "confirmation",
+              data: {
+                endpoint: `/orders/executed?hash=${order.prefixHash()}`,
+                method: "GET",
+              },
             },
           ],
         };
       }
 
-      // Step 3: Check the taker's approval
-      let isApproved: boolean;
-      let approvalTx;
-      if (kind === "erc721") {
-        const contract = new Sdk.Common.Helpers.Erc721(
-          baseProvider,
-          order.params.target
-        );
-        isApproved = await contract.isApproved(query.taker, proxy);
-        approvalTx = contract.approveTransaction(query.taker, proxy);
-      } else if (kind === "erc1155") {
-        const contract = new Sdk.Common.Helpers.Erc1155(
-          baseProvider,
-          order.params.target
-        );
-        isApproved = await contract.isApproved(query.taker, proxy);
-        approvalTx = contract.approveTransaction(query.taker, proxy);
-      } else {
-        return { error: "Unknown contract" };
-      }
-
-      const wethContract = new Sdk.Common.Helpers.Weth(
-        baseProvider,
-        config.chainId
-      );
-      const wethApproval = await wethContract.getAllowance(
-        query.taker,
-        Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
-      );
-
-      let isWethApproved = true;
-      let wethApprovalTx;
-      if (
-        bn(wethApproval).lt(
-          bn(order.params.basePrice)
-            .mul(order.params.takerRelayerFee)
-            .div(10000)
-        )
-      ) {
-        isWethApproved = false;
-        wethApprovalTx = wethContract.approveTransaction(
-          query.taker,
-          Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
-        );
-      }
-
-      // Step 4: Create matching order
-      const sellOrder = order.buildMatching(query.taker, buildMatchingArgs);
-
-      const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
-      const fillTxData = exchange.matchTransaction(
-        query.taker,
-        order,
-        sellOrder
-      );
-
-      return {
-        steps: [
-          {
-            ...steps[0],
-            status: "complete",
-            kind: "transaction",
-          },
-          {
-            ...steps[1],
-            status: isWethApproved ? "complete" : "incomplete",
-            kind: "transaction",
-            data: isWethApproved ? undefined : wethApprovalTx,
-          },
-          {
-            ...steps[2],
-            status: isApproved ? "complete" : "incomplete",
-            kind: "transaction",
-            data: isApproved ? undefined : approvalTx,
-          },
-          {
-            ...steps[3],
-            status: "incomplete",
-            kind: "transaction",
-            data: fillTxData,
-          },
-          {
-            ...steps[4],
-            status: "incomplete",
-            kind: "confirmation",
-            data: {
-              endpoint: `/orders/executed?hash=${order.prefixHash()}`,
-              method: "GET",
-            },
-          },
-        ],
-      };
+      return { error: "No matching order" };
     } catch (error) {
       logger.error("get_execute_sell_handler", `Handler failure: ${error}`);
       throw error;

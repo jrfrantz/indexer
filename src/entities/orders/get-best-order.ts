@@ -6,7 +6,11 @@ export type GetBestOrderFilter = {
   side: "sell" | "buy";
 };
 
-export type GetBestOrderResponse = { tokenSetId: string; rawData: any } | null;
+export type GetBestOrderResponse = {
+  kind: string;
+  tokenSetId: string;
+  rawData: any;
+} | null;
 
 export const getBestOrder = async (
   filter: GetBestOrderFilter
@@ -16,6 +20,7 @@ export const getBestOrder = async (
 
   const baseQuery = `
       select
+        "o"."kind",
         "o"."token_set_id",
         "o"."raw_data"
       from "orders" "o"
@@ -28,6 +33,7 @@ export const getBestOrder = async (
   return db.oneOrNone(baseQuery, filter).then(
     (r) =>
       r && {
+        kind: r.kind,
         tokenSetId: r.token_set_id,
         rawData: r.raw_data,
       }

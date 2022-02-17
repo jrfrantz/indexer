@@ -45,7 +45,7 @@ export const getExecuteCancelOptions: RouteOptions = {
     try {
       const order = await db.one(
         `
-          select "o"."raw_data" from "orders" "o"
+          select "o"."kind", "o"."raw_data" from "orders" "o"
           where "o"."hash" = $/hash/
             and "o"."maker" = $/maker/
             and (
@@ -64,52 +64,106 @@ export const getExecuteCancelOptions: RouteOptions = {
         return { error: "No matching order" };
       }
 
-      const sdkOrder = new Sdk.WyvernV2.Order(config.chainId, order.raw_data);
+      if (order.kind === "wyvern-v2") {
+        const sdkOrder = new Sdk.WyvernV2.Order(config.chainId, order.raw_data);
 
-      const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
-      const cancelTx = exchange.cancelTransaction(query.maker, sdkOrder);
+        const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
+        const cancelTx = exchange.cancelTransaction(query.maker, sdkOrder);
 
-      const steps = [
-        sdkOrder.params.side === Sdk.WyvernV2.Types.OrderSide.SELL
-          ? {
-              action: "Submit cancellation",
-              description:
-                "To cancel this listing you must confirm the transaction and pay the gas fee",
-            }
-          : {
-              action: "Cancel offer",
-              description:
-                "To cancel this offer you must confirm the transaction and pay the gas fee",
-            },
-        {
-          action: "Confirmation",
-          description: `Verify that the ${
-            sdkOrder.params.side === Sdk.WyvernV2.Types.OrderSide.SELL
-              ? "listing"
-              : "offer"
-          } was successfully cancelled`,
-        },
-      ];
-
-      return {
-        steps: [
+        const steps = [
+          sdkOrder.params.side === Sdk.WyvernV2.Types.OrderSide.SELL
+            ? {
+                action: "Submit cancellation",
+                description:
+                  "To cancel this listing you must confirm the transaction and pay the gas fee",
+              }
+            : {
+                action: "Cancel offer",
+                description:
+                  "To cancel this offer you must confirm the transaction and pay the gas fee",
+              },
           {
-            ...steps[0],
-            status: "incomplete",
-            kind: "transaction",
-            data: cancelTx,
+            action: "Confirmation",
+            description: `Verify that the ${
+              sdkOrder.params.side === Sdk.WyvernV2.Types.OrderSide.SELL
+                ? "listing"
+                : "offer"
+            } was successfully cancelled`,
           },
-          {
-            ...steps[1],
-            status: "incomplete",
-            kind: "confirmation",
-            data: {
-              endpoint: `/orders/executed?hash=${sdkOrder.prefixHash()}`,
-              method: "GET",
+        ];
+
+        return {
+          steps: [
+            {
+              ...steps[0],
+              status: "incomplete",
+              kind: "transaction",
+              data: cancelTx,
             },
+            {
+              ...steps[1],
+              status: "incomplete",
+              kind: "confirmation",
+              data: {
+                endpoint: `/orders/executed?hash=${sdkOrder.prefixHash()}`,
+                method: "GET",
+              },
+            },
+          ],
+        };
+      } else if (order.kind === "wyvern-v2.3") {
+        const sdkOrder = new Sdk.WyvernV23.Order(
+          config.chainId,
+          order.raw_data
+        );
+
+        const exchange = new Sdk.WyvernV23.Exchange(config.chainId);
+        const cancelTx = exchange.cancelTransaction(query.maker, sdkOrder);
+
+        const steps = [
+          sdkOrder.params.side === Sdk.WyvernV23.Types.OrderSide.SELL
+            ? {
+                action: "Submit cancellation",
+                description:
+                  "To cancel this listing you must confirm the transaction and pay the gas fee",
+              }
+            : {
+                action: "Cancel offer",
+                description:
+                  "To cancel this offer you must confirm the transaction and pay the gas fee",
+              },
+          {
+            action: "Confirmation",
+            description: `Verify that the ${
+              sdkOrder.params.side === Sdk.WyvernV23.Types.OrderSide.SELL
+                ? "listing"
+                : "offer"
+            } was successfully cancelled`,
           },
-        ],
-      };
+        ];
+
+        return {
+          steps: [
+            {
+              ...steps[0],
+              status: "incomplete",
+              kind: "transaction",
+              data: cancelTx,
+            },
+            {
+              ...steps[1],
+              status: "incomplete",
+              kind: "confirmation",
+              data: {
+                endpoint: `/orders/executed?hash=${sdkOrder.prefixHash()}`,
+                method: "GET",
+              },
+            },
+          ],
+        };
+      }
+
+      return { error: "No matching order" };
     } catch (error) {
       logger.error("get_execute_cancel_handler", `Handler failure: ${error}`);
       throw error;

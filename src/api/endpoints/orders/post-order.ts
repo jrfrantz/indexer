@@ -8,6 +8,7 @@ import { wyvernV2OrderFormat } from "@/api/types";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import * as wyvernV2 from "@/orders/wyvern-v2";
+import * as wyvernV23 from "@/orders/wyvern-v2.3";
 
 export const postOrderOptions: RouteOptions = {
   description: "Submit a new signed order to the order book.",
@@ -94,8 +95,55 @@ export const postOrderOptions: RouteOptions = {
             }
           );
         }
-      } else {
-        throw Boom.badRequest("Unsupported order kind");
+      } else if (kind === "wyvern-v2") {
+        const sdkOrder = new Sdk.WyvernV23.Order(config.chainId, data);
+        let orderInfo: wyvernV23.OrderInfo = { order: sdkOrder, attribute };
+
+        const filterResults = await wyvernV23.filterOrders([orderInfo]);
+        if (filterResults.invalid.length) {
+          throw Boom.badRequest(filterResults.invalid[0].reason);
+        }
+
+        if (orderbook === "reservoir") {
+          const saveResults = await wyvernV23.saveOrders(filterResults.valid);
+          if (saveResults.invalid.length) {
+            throw Boom.badRequest(saveResults.invalid[0].reason);
+          }
+        } else if (orderbook === "opensea") {
+          const osOrder = {
+            ...order.params,
+            makerProtocolFee: "0",
+            takerProtocolFee: "0",
+            makerReferrerFee: "0",
+            feeMethod: 1,
+            quantity: "1",
+            metadata: {
+              asset: {
+                id: data.tokenId,
+                address: data.contract,
+              },
+              schema: "ERC721",
+            },
+            hash: order.hash(),
+          };
+
+          // Post order to OpenSea
+          await axios.post(
+            `https://${
+              config.chainId === 4 ? "testnets-api." : ""
+            }opensea.io/wyvern/v1/orders/post`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": process.env.OPENSEA_API_KEY,
+              },
+              body: JSON.stringify(osOrder),
+            }
+          );
+        } else {
+          throw Boom.badRequest("Unsupported order kind");
+        }
       }
 
       return { message: "Success" };

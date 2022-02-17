@@ -7,7 +7,7 @@ import { bn } from "@/common/bignumber";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
-import * as wyvernV2 from "@/orders/wyvern-v2";
+import * as wyvernV23 from "@/orders/wyvern-v2.3";
 
 export const getExecuteBidOptions: RouteOptions = {
   description: "Get steps required to build a buy order.",
@@ -80,10 +80,10 @@ export const getExecuteBidOptions: RouteOptions = {
         query.feeRecipient = undefined;
       }
 
-      const order = await wyvernV2.buildOrder({
+      const order = await wyvernV23.buildOrder({
         ...query,
         side: "buy",
-      } as wyvernV2.BuildOrderOptions);
+      } as wyvernV23.BuildOrderOptions);
 
       if (!order) {
         return { error: "Could not generate order" };
@@ -109,7 +109,7 @@ export const getExecuteBidOptions: RouteOptions = {
       // Step 2: Check the maker's approval
       const wethApproval = await weth.getAllowance(
         query.maker,
-        Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
+        Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
       );
 
       let isWethApproved = true;
@@ -118,7 +118,7 @@ export const getExecuteBidOptions: RouteOptions = {
         isWethApproved = false;
         wethApprovalTx = weth.approveTransaction(
           query.maker,
-          Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
+          Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
         );
       }
 
@@ -163,12 +163,7 @@ export const getExecuteBidOptions: RouteOptions = {
             ...steps[2],
             status: hasSignature ? "complete" : "incomplete",
             kind: "signature",
-            data: hasSignature
-              ? undefined
-              : {
-                  message: order.hash(),
-                  signatureKind: "eip191",
-                },
+            data: hasSignature ? undefined : order.getSignatureData(),
           },
           {
             ...steps[3],
@@ -181,7 +176,7 @@ export const getExecuteBidOptions: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: "wyvern-v2",
+                      kind: "wyvern-v23",
                       orderbook: query.orderbook,
                       data: {
                         ...order.params,
