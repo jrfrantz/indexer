@@ -137,7 +137,7 @@ export const getContractInfo = (address: string[] = []): ContractInfo => ({
                 and "maker" = $/maker/
                 and "nonce" < $/nonce/
                 and ("status" = 'valid' or "status" = 'no-balance')
-              return "hash"
+              returning "hash"
             `,
             {
               maker,
