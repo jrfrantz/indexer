@@ -4,6 +4,10 @@ import { Log } from "@ethersproject/abstract-provider";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import {
+  BulkCancelEvent,
+  addBulkCancelEvents,
+} from "@/events/common/bulk-cancels";
+import {
   CancelEvent,
   addCancelEvents,
   removeCancelEvents,
@@ -17,7 +21,6 @@ import { ContractInfo } from "@/events/index";
 import { parseEvent } from "@/events/parser";
 import { FillInfo, addToFillsHandleQueue } from "@/jobs/fills-handle";
 import { HashInfo, addToOrdersUpdateByHashQueue } from "@/jobs/orders-update";
-import { db } from "@/common/db";
 
 const abi = new Interface([
   `event OrderCancelled(
@@ -36,12 +39,6 @@ const abi = new Interface([
     uint256 newNonce
   )`,
 ]);
-
-type BulkCancelEvent = {
-  context: string;
-  maker: string;
-  newNonce: string;
-};
 
 export const getContractInfo = (address: string[] = []): ContractInfo => ({
   filter: { address },
@@ -107,7 +104,7 @@ export const getContractInfo = (address: string[] = []): ContractInfo => ({
             const maker = parsedLog.args.maker.toLowerCase();
             const newNonce = parsedLog.args.newNonce.toString();
 
-            bulkCancelEvents.push({ context, maker, newNonce });
+            bulkCancelEvents.push({ baseParams, maker, minNonce: newNonce });
 
             break;
           }
@@ -120,35 +117,20 @@ export const getContractInfo = (address: string[] = []): ContractInfo => ({
       }
     }
 
-    await addCancelEvents("wyvern-v2", cancelEvents);
-    await addFillEvents("wyvern-v2", fillEvents);
+    const bulkCancelledOrders: { hash: string }[] = await addBulkCancelEvents(
+      "wyvern-v2.3",
+      bulkCancelEvents
+    );
+    await addCancelEvents("wyvern-v2.3", cancelEvents);
+    await addFillEvents("wyvern-v2.3", fillEvents);
 
     if (!backfill) {
       if (config.acceptOrders) {
         await addToOrdersUpdateByHashQueue(hashInfos);
         await addToFillsHandleQueue(fillInfos);
-
-        for (const { context, maker, newNonce } of bulkCancelEvents) {
-          // TODO: Use multi-row inserts
-          const hashes: { hash: string }[] = await db.manyOrNone(
-            `
-              update "orders" set "status" = 'cancelled'
-              where "kind" = 'wyvern-v2.3'
-                and "maker" = $/maker/
-                and "nonce" < $/nonce/
-                and ("status" = 'valid' or "status" = 'no-balance')
-              returning "hash"
-            `,
-            {
-              maker,
-              nonce: newNonce,
-            }
-          );
-
-          await addToOrdersUpdateByHashQueue(
-            hashes.map(({ hash }) => ({ context, hash }))
-          );
-        }
+        await addToOrdersUpdateByHashQueue(
+          bulkCancelledOrders.map(({ hash }) => ({ context: hash, hash }))
+        );
       }
     }
   },

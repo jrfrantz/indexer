@@ -1,7 +1,7 @@
 import { db, pgp } from "@/common/db";
 import { BaseParams } from "@/events/parser";
 
-type OrderKind = "wyvern-v2";
+type OrderKind = "wyvern-v2" | "wyvern-v2.3";
 
 export type FillEvent = {
   buyHash: string;
