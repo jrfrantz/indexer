@@ -6,6 +6,7 @@ import * as erc20 from "@/events/erc20";
 import * as erc721 from "@/events/erc721";
 import * as erc1155 from "@/events/erc1155";
 import * as wyvernV2 from "@/events/wyvern-v2";
+import * as wyvernV23 from "@/events/wyvern-v2.3";
 
 // https://github.com/ethers-io/ethers.js/discussions/2168
 interface EnhancedFilter extends Omit<Filter, "address"> {
@@ -42,13 +43,19 @@ export const sync = async (
 
 // Newly added contract kinds should all make it into the below lists
 
-export type ContractKind = "erc20" | "erc721" | "erc1155" | "wyvern-v2";
+export type ContractKind =
+  | "erc20"
+  | "erc721"
+  | "erc1155"
+  | "wyvern-v2"
+  | "wyvern-v2.3";
 
 export const contractKinds: ContractKind[] = [
   "erc20",
   "erc721",
   "erc1155",
   "wyvern-v2",
+  "wyvern-v2.3",
 ];
 
 export const getContractInfo = (
@@ -67,6 +74,9 @@ export const getContractInfo = (
     }
     case "wyvern-v2": {
       return wyvernV2.getContractInfo(address);
+    }
+    case "wyvern-v2.3": {
+      return wyvernV23.getContractInfo(address);
     }
   }
 };

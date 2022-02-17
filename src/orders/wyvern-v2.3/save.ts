@@ -636,6 +636,7 @@ export const saveOrders = async (
           "valid_between",
           "source_info",
           "royalty_info",
+          "nonce",
           "raw_data",
           "expiry",
           "created_at"
@@ -652,6 +653,7 @@ export const saveOrders = async (
           tstzrange(date_trunc('seconds', to_timestamp($/listingTime/)), date_trunc('seconds', to_timestamp($/expirationTime/))),
           $/sourceInfo:json/,
           $/royaltyInfo:json/,
+          $/nonce/,
           $/rawData/,
           date_trunc('seconds', to_timestamp($/expirationTime/)),
           date_trunc('milliseconds', now())
@@ -666,6 +668,7 @@ export const saveOrders = async (
           "valid_between" = tstzrange(date_trunc('seconds', to_timestamp($/listingTime/)), date_trunc('seconds', to_timestamp($/expirationTime/))),
           "source_info" = $/sourceInfo:json/,
           "royalty_info" = $/royaltyInfo:json/,
+          "nonce" = $/nonce/,
           "raw_data" = $/rawData/,
           "expiry" = date_trunc('seconds', to_timestamp($/expirationTime/)),
           "created_at" = date_trunc('milliseconds', now())
@@ -687,6 +690,7 @@ export const saveOrders = async (
             : order.params.expirationTime,
         sourceInfo,
         royaltyInfo,
+        nonce: order.params.nonce,
         rawData: order.params,
       },
     });
