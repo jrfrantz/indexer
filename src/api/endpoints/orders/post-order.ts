@@ -100,7 +100,7 @@ export const postOrderOptions: RouteOptions = {
             }
           );
         }
-      } else if (kind === "wyvern-v2") {
+      } else if (kind === "wyvern-v2.3") {
         const sdkOrder = new Sdk.WyvernV23.Order(config.chainId, data);
         let orderInfo: wyvernV23.OrderInfo = { order: sdkOrder, attribute };
 

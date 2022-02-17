@@ -176,7 +176,7 @@ export const getExecuteBidOptions: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: "wyvern-v23",
+                      kind: "wyvern-v2.3",
                       orderbook: query.orderbook,
                       data: {
                         ...order.params,
