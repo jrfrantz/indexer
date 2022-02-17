@@ -27,7 +27,7 @@ export const postOrderOptions: RouteOptions = {
           .lowercase()
           .valid("reservoir", "opensea")
           .default("reservoir"),
-        data: Joi.alternatives().conditional(".kind", {
+        data: Joi.alternatives().conditional("kind", {
           switch: [
             { is: "wyvern-v2", then: wyvernV2OrderFormat },
             { is: "wyvern-v2.3", then: wyvernV23OrderFormat },
