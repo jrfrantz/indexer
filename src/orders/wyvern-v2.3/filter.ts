@@ -4,7 +4,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { db } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
-import { OrderInfo } from "@/orders/wyvern-v2";
+import { OrderInfo } from "@/orders/wyvern-v2.3";
 
 type FilterResult = {
   valid: OrderInfo[];

@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 
 const PENDING_ORDERS_KEY = "pending_orders";
 
-export const addPendingOrders = async (
+export const addPendingOrdersWyvernV2 = async (
   data: { order: Sdk.WyvernV2.Order; schemaHash?: string }[]
 ) => {
   if (data.length) {
@@ -17,6 +17,25 @@ export const addPendingOrders = async (
       ...data.map(({ order, schemaHash }) =>
         JSON.stringify({
           kind: "wyvern-v2",
+          data: {
+            ...order.params,
+            schemaHash,
+          },
+        })
+      )
+    );
+  }
+};
+
+export const addPendingOrdersWyvernV23 = async (
+  data: { order: Sdk.WyvernV23.Order; schemaHash?: string }[]
+) => {
+  if (data.length) {
+    await redis.rpush(
+      PENDING_ORDERS_KEY,
+      ...data.map(({ order, schemaHash }) =>
+        JSON.stringify({
+          kind: "wyvern-v2.3",
           data: {
             ...order.params,
             schemaHash,

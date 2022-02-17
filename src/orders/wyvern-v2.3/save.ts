@@ -4,7 +4,7 @@ import { generateMerkleTree } from "@reservoir0x/sdk/dist/wyvern-v2/builders/tok
 import { bn } from "@/common/bignumber";
 import { db, pgp } from "@/common/db";
 import {
-  addPendingOrdersWyvernV2,
+  addPendingOrdersWyvernV23,
   addPendingTokenSets,
 } from "@/jobs/orders-relay";
 import { addToOrdersUpdateByHashQueue } from "@/jobs/orders-update";
@@ -15,7 +15,7 @@ import {
   generateCollectionInfo,
   generateTokenInfo,
 } from "@/orders/utils";
-import { OrderInfo } from "@/orders/wyvern-v2";
+import { OrderInfo } from "@/orders/wyvern-v2.3";
 
 type OrderMetadata = {
   kind: TokenSetLabelKind;
@@ -23,7 +23,7 @@ type OrderMetadata = {
 };
 
 const extractOrderMetadata = (
-  order: Sdk.WyvernV2.Order
+  order: Sdk.WyvernV23.Order
 ): OrderMetadata | undefined => {
   const info = order.getInfo();
   if (!info) {
@@ -160,7 +160,7 @@ export const saveOrders = async (
   // - valid orders together with their associated schema hashes
   // - new token sets
   const arweaveOrderData: {
-    order: Sdk.WyvernV2.Order;
+    order: Sdk.WyvernV23.Order;
     schemaHash?: string;
   }[] = [];
   const arweaveTokenSetData: {
@@ -706,7 +706,7 @@ export const saveOrders = async (
   );
 
   if (relayToArweave) {
-    await addPendingOrdersWyvernV2(arweaveOrderData);
+    await addPendingOrdersWyvernV23(arweaveOrderData);
     await addPendingTokenSets(arweaveTokenSetData);
   }
 
