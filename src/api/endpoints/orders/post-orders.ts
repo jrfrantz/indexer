@@ -24,15 +24,12 @@ export const postOrdersOptions: RouteOptions = {
             .lowercase()
             .valid("wyvern-v2", "wyvern-v2.3")
             .required(),
-          data: Joi.alternatives()
-            .when("kind", {
-              is: "wyvern-v2",
-              then: wyvernV2OrderFormat,
-            })
-            .when("kind", {
-              is: "wyvern-v2.3",
-              then: wyvernV23OrderFormat,
-            }),
+          data: Joi.alternatives().conditional(".kind", {
+            switch: [
+              { is: "wyvern-v2", then: wyvernV2OrderFormat },
+              { is: "wyvern-v2.3", then: wyvernV23OrderFormat },
+            ],
+          }),
           attribute: Joi.object({
             collection: Joi.string().required(),
             key: Joi.string().required(),
