@@ -4,7 +4,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import Joi from "joi";
 
-import { wyvernV2OrderFormat } from "@/api/types";
+import { wyvernV2OrderFormat, wyvernV23OrderFormat } from "@/api/types";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import * as wyvernV2 from "@/orders/wyvern-v2";
@@ -19,14 +19,19 @@ export const postOrderOptions: RouteOptions = {
   validate: {
     payload: Joi.object({
       order: Joi.object({
-        kind: Joi.string().lowercase().valid("wyvern-v2").required(),
+        kind: Joi.string()
+          .lowercase()
+          .valid("wyvern-v2", "wyvern-v2.3")
+          .required(),
         orderbook: Joi.string()
           .lowercase()
           .valid("reservoir", "opensea")
           .default("reservoir"),
-        data: Joi.object().when("kind", {
-          is: Joi.equal("wyvern-v2"),
-          then: wyvernV2OrderFormat,
+        data: Joi.alternatives().conditional(".kind", {
+          switch: [
+            { is: "wyvern-v2", then: wyvernV2OrderFormat },
+            { is: "wyvern-v2.3", then: wyvernV23OrderFormat },
+          ],
         }),
         attribute: Joi.object({
           collection: Joi.string().required(),
