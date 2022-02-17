@@ -64,17 +64,17 @@ export const getExecuteBuyOptions: RouteOptions = {
       if (bestOrder.kind === "wyvern-v2") {
         const order = new Sdk.WyvernV2.Order(config.chainId, bestOrder.rawData);
 
-        const buildMatchingArgs: any[] = [];
+        const buildMatchingArgs: any = {};
         if (
           order.params.kind?.endsWith("token-range") ||
           order.params.kind?.endsWith("contract-wide")
         ) {
           // Pass the token id to match
-          buildMatchingArgs.push(query.tokenId);
+          buildMatchingArgs.tokenId = query.tokenId;
         }
         if (order.params.kind?.endsWith("token-list")) {
           // Pass the token id to match
-          buildMatchingArgs.push(query.tokenId);
+          buildMatchingArgs.tokenId = query.tokenId;
 
           const tokens: { token_id: string }[] = await db.manyOrNone(
             `
@@ -85,7 +85,7 @@ export const getExecuteBuyOptions: RouteOptions = {
           );
 
           // Pass the list of tokens of the underlying filled order
-          buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
+          buildMatchingArgs.tokenIds = tokens.map(({ token_id }) => token_id);
         }
 
         // Step 1: Check the taker's balance
@@ -141,28 +141,28 @@ export const getExecuteBuyOptions: RouteOptions = {
           bestOrder.rawData
         );
 
-        const buildMatchingArgs: any[] = [];
+        const buildMatchingArgs: any = {};
         if (
           order.params.kind?.endsWith("token-range") ||
           order.params.kind?.endsWith("contract-wide")
         ) {
           // Pass the token id to match
-          buildMatchingArgs.push(query.tokenId);
+          buildMatchingArgs.tokenId = query.tokenId;
         }
         if (order.params.kind?.endsWith("token-list")) {
           // Pass the token id to match
-          buildMatchingArgs.push(query.tokenId);
+          buildMatchingArgs.tokenId = query.tokenId;
 
           const tokens: { token_id: string }[] = await db.manyOrNone(
             `
-            select "tst"."token_id" from "token_sets_tokens" "tst"
-            where "tst"."token_set_id" = $/tokenSetId/
-          `,
+              select "tst"."token_id" from "token_sets_tokens" "tst"
+              where "tst"."token_set_id" = $/tokenSetId/
+            `,
             { tokenSetId: bestOrder.tokenSetId }
           );
 
           // Pass the list of tokens of the underlying filled order
-          buildMatchingArgs.push(tokens.map(({ token_id }) => token_id));
+          buildMatchingArgs.tokenIds = tokens.map(({ token_id }) => token_id);
         }
 
         // Step 1: Check the taker's balance
