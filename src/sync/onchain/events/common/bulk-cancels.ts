@@ -57,11 +57,11 @@ export const addBulkCancelEvents = async (
           on conflict do nothing
           returning "maker", "min_nonce"
         )
-        update "orders" set "status" = 'cancelled' from "x"
-        where "kind" = '${orderKind}'
-          and "maker" = "x"."maker"
-          and "nonce" < "x"."min_nonce"
-          and ("status" = 'valid' or "status" = 'no-balance')
+        update "orders" as "o" set "status" = 'cancelled' from "x"
+        where "o"."kind" = '${orderKind}'
+          and "o"."maker" = "x"."maker"
+          and "o"."nonce" < "x"."min_nonce"
+          and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
         returning "hash"
       `;
     }
