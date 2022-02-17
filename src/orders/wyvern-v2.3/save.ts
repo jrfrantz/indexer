@@ -675,7 +675,7 @@ export const saveOrders = async (
       `,
       values: {
         hash: order.prefixHash(),
-        kind: "wyvern-v2",
+        kind: "wyvern-v2.3",
         status: "valid",
         side,
         tokenSetId: tokenSetInfo.id,
