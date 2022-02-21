@@ -12,7 +12,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 
   // To run separately from the migration:
   // pgm.createIndex("orders", ["kind", "maker", "nonce"], {
-  //   name: "orders_side_created_at_hash",
+  //   name: "orders_kind_maker_nonce_index",
   //   where: `"status" = 'valid' or "status" = 'no-balance'`,
   //   concurrently: true,
   // });

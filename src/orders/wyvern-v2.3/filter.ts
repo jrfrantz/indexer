@@ -150,7 +150,7 @@ export const filterOrders = async (
 
     // Check: order has a valid signature
     try {
-      await order.checkSignature();
+      order.checkSignature();
     } catch {
       result.invalid.push({
         orderInfo,
