@@ -77,7 +77,10 @@ export const postOrdersOptions: RouteOptions = {
         const filterResults = await wyvernV2.filterOrders(
           validOrderInfosWyvernV2
         );
-        const saveResults = await wyvernV2.saveOrders(filterResults.valid);
+        const saveResults = await wyvernV2.saveOrders(
+          filterResults.valid,
+          false
+        );
 
         for (const { orderInfo, reason } of filterResults.invalid) {
           result[orderInfo.order.prefixHash()] = reason;
@@ -96,7 +99,10 @@ export const postOrdersOptions: RouteOptions = {
         const filterResults = await wyvernV23.filterOrders(
           validOrderInfosWyvernV23
         );
-        const saveResults = await wyvernV23.saveOrders(filterResults.valid);
+        const saveResults = await wyvernV23.saveOrders(
+          filterResults.valid,
+          false
+        );
 
         for (const { orderInfo, reason } of filterResults.invalid) {
           result[orderInfo.order.prefixHash()] = reason;
