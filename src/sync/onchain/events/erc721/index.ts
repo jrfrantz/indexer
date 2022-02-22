@@ -110,7 +110,8 @@ export const getContractInfo = (address: string[] = []): ContractInfo => ({
               context,
               side: "sell",
               maker: owner,
-              contract: operator,
+              contract: baseParams.address,
+              operator,
               approved,
               checkApproval: true,
             });
