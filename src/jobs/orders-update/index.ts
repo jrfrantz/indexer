@@ -421,10 +421,12 @@ if (config.doBackgroundWork) {
                   update "orders" as "o" set
                     "approved" = $/approved/
                   where "o"."maker" = $/owner/
+                    and "o"."kind" = 'wyvern-v2.3'
                     and "o"."side" = 'sell'
                     and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
                     and "o"."approved" != $/approved/
-                `
+                `,
+                { owner, approved }
               );
             }
           }
