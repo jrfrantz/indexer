@@ -57,7 +57,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // For efficienctly retrieving the floor sell or top bid of
   // any particular token id
   pgm.createIndex("orders", ["token_set_id", "side", "valid_between"], {
-    where: `"status" = 'valid'`,
+    where: `"status" = 'valid' and "approved"`,
     // include: ["value", "price", "hash"],
   });
 

@@ -4,6 +4,11 @@ import { Log } from "@ethersproject/abstract-provider";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import {
+  NftApprovalEvent,
+  addNftApprovalEvents,
+  removeNftApprovalEvents,
+} from "@/events/common/nft-approvals";
+import {
   NftTransferEvent,
   addNftTransferEvents,
   removeNftTransferEvents,
@@ -17,6 +22,11 @@ const abi = new Interface([
     address indexed from,
     address indexed to,
     uint256 indexed tokenId
+  )`,
+  `event ApprovalForAll(
+    address indexed owner,
+    address indexed operator,
+    bool approved
   )`,
 ]);
 
@@ -34,6 +44,7 @@ const nonStandardAbi = new Interface([
 export const getContractInfo = (address: string[] = []): ContractInfo => ({
   filter: { address },
   syncCallback: async (logs: Log[], backfill?: boolean) => {
+    const approvalEvents: NftApprovalEvent[] = [];
     const transferEvents: NftTransferEvent[] = [];
     const makerInfos: MakerInfo[] = [];
 
@@ -81,18 +92,45 @@ export const getContractInfo = (address: string[] = []): ContractInfo => ({
 
             break;
           }
+
+          case abi.getEventTopic("ApprovalForAll"): {
+            const parsedLog = abi.parseLog(log);
+            const owner = parsedLog.args.owner.toLowerCase();
+            const operator = parsedLog.args.operator.toLowerCase();
+            const approved = parsedLog.args.approved;
+
+            approvalEvents.push({
+              owner,
+              operator,
+              approved,
+              baseParams,
+            });
+
+            makerInfos.push({
+              context,
+              side: "sell",
+              maker: owner,
+              contract: operator,
+              approved,
+              checkApproval: true,
+            });
+
+            break;
+          }
         }
       } catch (error) {
         logger.error("erc721_callback", `Could not parse log ${log}: ${error}`);
       }
     }
 
+    await addNftApprovalEvents(approvalEvents);
     await addNftTransferEvents(transferEvents);
     if (!backfill && config.acceptOrders) {
       await addToOrdersUpdateByMakerQueue(makerInfos);
     }
   },
   fixCallback: async (blockHash) => {
+    await removeNftApprovalEvents(blockHash);
     await removeNftTransferEvents(blockHash);
   },
 });
