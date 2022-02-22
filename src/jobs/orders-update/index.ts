@@ -273,6 +273,8 @@ export const addToOrdersUpdateByMakerQueue = async (
         jobId:
           makerInfo.context +
           "-" +
+          makerInfo.side +
+          "-" +
           Boolean(makerInfo.checkApproval) +
           "-" +
           makerInfo.maker,
@@ -416,7 +418,7 @@ if (config.doBackgroundWork) {
             // For now, we only support Wyver v2.3 so we simply default to that.
             const proxy = await wyvernV23Utils.getProxy(owner);
             if (proxy && proxy === operator) {
-              await db.none(
+              const result = await db.manyOrNone(
                 `
                   update "orders" as "o" set
                     "approved" = $/approved/
@@ -425,8 +427,14 @@ if (config.doBackgroundWork) {
                     and "o"."side" = 'sell'
                     and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
                     and "o"."approved" != $/approved/
+                  returning "hash"
                 `,
                 { owner, approved }
+              );
+
+              // Re-check all affected orders
+              await addToOrdersUpdateByHashQueue(
+                result.map(({ hash }) => ({ context, hash }))
               );
             }
           }
