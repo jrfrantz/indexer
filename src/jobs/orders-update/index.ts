@@ -254,6 +254,7 @@ export type MakerInfo = {
   maker: string;
   contract: string;
   approved?: boolean;
+  operator?: string;
   // The token id will be missing for `buy` orders
   tokenId?: string;
   checkApproval?: boolean;
@@ -273,11 +274,13 @@ export const addToOrdersUpdateByMakerQueue = async (
         jobId:
           makerInfo.context +
           "-" +
+          makerInfo.maker +
+          "-" +
           makerInfo.side +
           "-" +
-          Boolean(makerInfo.checkApproval) +
+          makerInfo.contract +
           "-" +
-          makerInfo.maker,
+          Boolean(makerInfo.checkApproval),
       },
     }))
   );
@@ -309,6 +312,7 @@ if (config.doBackgroundWork) {
         side,
         maker,
         contract,
+        operator,
         approved,
         tokenId,
         checkApproval,
@@ -411,25 +415,29 @@ if (config.doBackgroundWork) {
           );
         } else {
           if (side === "sell") {
-            const owner = maker;
-            const operator = contract;
-
             // Based on the operator we should detect the order kinds to re-check.
             // For now, we only support Wyver v2.3 so we simply default to that.
-            const proxy = await wyvernV23Utils.getProxy(owner);
+            const proxy = await wyvernV23Utils.getProxy(maker);
             if (proxy && proxy === operator) {
               const result = await db.manyOrNone(
                 `
                   update "orders" as "o" set
                     "approved" = $/approved/
-                  where "o"."maker" = $/owner/
-                    and "o"."kind" = 'wyvern-v2.3'
-                    and "o"."side" = 'sell'
-                    and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
-                    and "o"."approved" != $/approved/
-                  returning "hash"
+                  from (
+                    select "o"."hash" from "orders" "o"
+                    join "token_sets_tokens" "tst"
+                      on "o"."token_set_id" = "tst"."token_set_id"
+                    where "tst"."contract" = $/contract/
+                      and "o"."kind" = 'wyvern-v2.3'
+                      and "o"."maker" = $/maker/
+                      and "o"."side" = 'sell'
+                      and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
+                      and "o"."approved" != $/approved/
+                  ) "x"
+                  where "o"."hash" = "x"."hash"
+                  returning "o"."hash"
                 `,
-                { owner, approved }
+                { contract, maker, approved }
               );
 
               // Re-check all affected orders
