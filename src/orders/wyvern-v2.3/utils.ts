@@ -21,7 +21,9 @@ export const getProxy = async (owner: string): Promise<string | undefined> => {
       proxy = await new Sdk.WyvernV23.Helpers.ProxyRegistry(
         baseProvider,
         config.chainId
-      ).getProxy(owner);
+      )
+        .getProxy(owner)
+        .then((p) => p.toLowerCase());
 
       if (proxy === AddressZero) {
         return undefined;
