@@ -7,6 +7,7 @@ import { db, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { acquireLock, redis } from "@/common/redis";
 import { config } from "@/config/index";
+import * as wyvernV23Utils from "@/orders/wyvern-v2.3/utils";
 
 // Whenever an order changes its state (eg. a new order comes in,
 // a fill/cancel happens, an order gets expired or an order gets
@@ -182,6 +183,7 @@ if (config.doBackgroundWork) {
                     and "tst"."token_id" = "x"."token_id"
                     and "o"."side" = '${side}'
                     and "o"."status" = 'valid'
+                    and "o"."approved"
                     and ${
                       side === "sell"
                         ? "true"
@@ -251,8 +253,10 @@ export type MakerInfo = {
   side: "buy" | "sell";
   maker: string;
   contract: string;
+  approved?: boolean;
   // The token id will be missing for `buy` orders
   tokenId?: string;
+  checkApproval?: boolean;
 };
 
 export const addToOrdersUpdateByMakerQueue = async (
@@ -266,7 +270,12 @@ export const addToOrdersUpdateByMakerQueue = async (
       name: makerInfo.maker,
       data: makerInfo,
       opts: {
-        jobId: makerInfo.context + "-" + makerInfo.maker,
+        jobId:
+          makerInfo.context +
+          "-" +
+          Boolean(makerInfo.checkApproval) +
+          "-" +
+          makerInfo.maker,
       },
     }))
   );
@@ -293,102 +302,133 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     BY_MAKER_JOB_NAME,
     async (job: Job) => {
-      const { context, side, maker, contract, tokenId } = job.data;
+      const {
+        context,
+        side,
+        maker,
+        contract,
+        approved,
+        tokenId,
+        checkApproval,
+      } = job.data;
 
       try {
-        let orderStatuses: {
-          hash: string;
-          old_status: string;
-          new_status: string;
-        }[] = [];
+        if (!checkApproval) {
+          let orderStatuses: {
+            hash: string;
+            old_status: string;
+            new_status: string;
+          }[] = [];
 
-        if (side === "buy") {
-          orderStatuses = await db.manyOrNone(
-            `
-              select
-                "o"."hash",
-                "o"."status" as "old_status",
-                (case
-                  when "w"."amount" >= "o"."price" then 'valid'
-                  else 'no-balance'
-                end)::order_status_t as "new_status"
-              from "orders" "o"
-              join "ownerships" "w"
-                on "o"."maker" = "w"."owner"
-              where "o"."maker" = $/maker/
-                and "o"."side" = 'buy'
-                and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
-                and "w"."contract" = $/weth/
-                and "w"."token_id" = -1
-            `,
-            {
-              maker,
-              // We only support eth/weth as payment
-              weth: Common.Addresses.Weth[config.chainId],
+          if (side === "buy") {
+            orderStatuses = await db.manyOrNone(
+              `
+                select
+                  "o"."hash",
+                  "o"."status" as "old_status",
+                  (case
+                    when "w"."amount" >= "o"."price" then 'valid'
+                    else 'no-balance'
+                  end)::order_status_t as "new_status"
+                from "orders" "o"
+                join "ownerships" "w"
+                  on "o"."maker" = "w"."owner"
+                where "o"."maker" = $/maker/
+                  and "o"."side" = 'buy'
+                  and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
+                  and "w"."contract" = $/weth/
+                  and "w"."token_id" = -1
+              `,
+              {
+                maker,
+                // We only support eth/weth as payment
+                weth: Common.Addresses.Weth[config.chainId],
+              }
+            );
+          } else if (side === "sell") {
+            orderStatuses = await db.manyOrNone(
+              `
+                select
+                  "o"."hash",
+                  "o"."status" as "old_status",
+                  (case
+                    when "w"."amount" > 0 then 'valid'
+                    else 'no-balance'
+                  end)::order_status_t as "new_status"
+                from "orders" "o"
+                join "ownerships" "w"
+                  on "o"."maker" = "w"."owner"
+                join "token_sets_tokens" "tst"
+                  on "o"."token_set_id" = "tst"."token_set_id"
+                  and "w"."contract" = "tst"."contract"
+                  and "w"."token_id" = "tst"."token_id"
+                where "o"."maker" = $/maker/
+                  and "o"."side" = 'sell'
+                  and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
+                  and "w"."contract" = $/contract/
+                  and "w"."token_id" = $/tokenId/
+              `,
+              {
+                maker,
+                contract,
+                tokenId,
+              }
+            );
+          }
+
+          // Filter out orders which have the same status as before
+          orderStatuses = orderStatuses.filter(
+            ({ old_status, new_status }) => old_status !== new_status
+          );
+
+          if (orderStatuses.length) {
+            const columns = new pgp.helpers.ColumnSet(["hash", "status"], {
+              table: "orders",
+            });
+            const values = pgp.helpers.values(
+              orderStatuses.map(({ hash, new_status }) => ({
+                hash,
+                status: new_status,
+              })),
+              columns
+            );
+
+            await db.none(
+              `
+                update "orders" as "o" set
+                  "status" = "x"."status"::order_status_t
+                from (values ${values}) as "x"("hash", "status")
+                where "o"."hash" = "x"."hash"::text
+              `
+            );
+          }
+
+          // Re-check all affected orders
+          await addToOrdersUpdateByHashQueue(
+            orderStatuses.map(({ hash }) => ({ context, hash }))
+          );
+        } else {
+          if (side === "sell") {
+            const owner = maker;
+            const operator = contract;
+
+            // Based on the operator we should detect the order kinds to re-check.
+            // For now, we only support Wyver v2.3 so we simply default to that.
+            const proxy = await wyvernV23Utils.getProxy(owner);
+            if (proxy && proxy === operator) {
+              await db.none(
+                `
+                  update "orders" as "o" set
+                    "approved" = $/approved/
+                  where "o"."maker" = $/owner/
+                    and "o"."side" = 'sell'
+                    and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
+                    and "o"."approved" != $/approved/
+                `
+              );
             }
-          );
-        } else if (side === "sell") {
-          orderStatuses = await db.manyOrNone(
-            `
-              select
-                "o"."hash",
-                "o"."status" as "old_status",
-                (case
-                  when "w"."amount" > 0 then 'valid'
-                  else 'no-balance'
-                end)::order_status_t as "new_status"
-              from "orders" "o"
-              join "ownerships" "w"
-                on "o"."maker" = "w"."owner"
-              join "token_sets_tokens" "tst"
-                on "o"."token_set_id" = "tst"."token_set_id"
-                and "w"."contract" = "tst"."contract"
-                and "w"."token_id" = "tst"."token_id"
-              where "o"."maker" = $/maker/
-                and "o"."side" = 'sell'
-                and ("o"."status" = 'valid' or "o"."status" = 'no-balance')
-                and "w"."contract" = $/contract/
-                and "w"."token_id" = $/tokenId/
-            `,
-            {
-              maker,
-              contract,
-              tokenId,
-            }
-          );
+          }
         }
-
-        // Filter out orders which have the same status as before
-        orderStatuses = orderStatuses.filter(
-          ({ old_status, new_status }) => old_status !== new_status
-        );
-
-        if (orderStatuses.length) {
-          const columns = new pgp.helpers.ColumnSet(["hash", "status"], {
-            table: "orders",
-          });
-          const values = pgp.helpers.values(
-            orderStatuses.map(({ hash, new_status }) => ({
-              hash,
-              status: new_status,
-            })),
-            columns
-          );
-
-          await db.none(
-            `
-              update "orders" as "o" set
-                "status" = "x"."status"::order_status_t
-              from (values ${values}) as "x"("hash", "status")
-              where "o"."hash" = "x"."hash"::text
-            `
-          );
-        }
-
-        // Re-check all affected orders
-        await addToOrdersUpdateByHashQueue(
-          orderStatuses.map(({ hash }) => ({ context, hash }))
-        );
       } catch (error) {
         logger.error(
           BY_MAKER_JOB_NAME,
