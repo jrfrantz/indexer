@@ -79,6 +79,7 @@ export const postFixCacheOptions: RouteOptions = {
                     on "tst"."token_set_id" = "o"."token_set_id"
                     and "o"."side" = 'sell'
                     and "o"."status" = 'valid'
+                    and "o"."approved"
                   where "t"."contract" = $/contract/
                   order by "t"."contract", "t"."token_id", "o"."value" asc nulls last
                 ) "x"
@@ -115,6 +116,7 @@ export const postFixCacheOptions: RouteOptions = {
                     on "tst"."token_set_id" = "o"."token_set_id"
                     and "o"."side" = 'buy'
                     and "o"."status" = 'valid'
+                    and "o"."approved"
                   where "t"."contract" = $/contract/
                     and exists(
                       select from "ownerships" "w"
@@ -156,6 +158,7 @@ export const postFixCacheOptions: RouteOptions = {
                   where "o"."token_set_id" = "ts"."id"
                     and "o"."side" = 'buy'
                     and "o"."status" = 'valid'
+                    and "o"."approved"
                   order by "o"."value" desc nulls last
                   limit 1
                 ) "y" on true
