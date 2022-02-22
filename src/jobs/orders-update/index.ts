@@ -435,7 +435,7 @@ if (config.doBackgroundWork) {
                       and "o"."approved" != $/approved/
                   ) "x"
                   where "o"."hash" = "x"."hash"
-                  returning "hash"
+                  returning "o"."hash"
                 `,
                 { contract, maker, approved }
               );
