@@ -36,6 +36,7 @@
     "joi": "17.x",
     "json-stable-stringify": "^1.0.1",
     "node-cron": "^3.0.0",
+    "p-limit": "^3.0.0",
     "pg": "^8.7.1",
     "pg-promise": "^10.11.1",
     "qs": "^6.10.1",

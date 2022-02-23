@@ -12,6 +12,7 @@ import { config } from "./config";
 import * as wyvernV23Utils from "@/orders/wyvern-v2.3/utils";
 import { addToOrdersUpdateByHashQueue } from "./jobs/orders-update";
 import { ethers } from "ethers";
+import pLimit from "p-limit";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
@@ -29,7 +30,7 @@ const foo = async () => {
   const orders = await db.manyOrNone(
     `select raw_data from orders where kind = 'wyvern-v2.3' and (status = 'valid' or status = 'no-balance') and side = 'sell'`
   );
-  for (let i = 0; i < orders.length; i++) {
+  const handle = async (raw_data: any, i: number) => {
     console.log(i);
     const order = new Sdk.WyvernV23.Order(
       config.chainId,
@@ -37,11 +38,11 @@ const foo = async () => {
     );
     const proxy = await wyvernV23Utils.getProxy(order.params.maker);
     if (!proxy) {
-      continue;
+      return;
     }
     const info = order.getInfo();
     if (!info) {
-      continue;
+      return;
     }
     if (order.params.kind?.startsWith("erc721")) {
       const contract = new Sdk.Common.Helpers.Erc721(
@@ -90,7 +91,14 @@ const foo = async () => {
         ]);
       }
     }
-  }
+  };
+
+  const limit = pLimit(50);
+  await Promise.all(
+    orders.map(({ raw_data }, i) =>
+      limit(() => handle(raw_data, i).catch(() => {}))
+    )
+  );
   console.log("done");
 };
 foo();
