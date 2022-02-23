@@ -66,7 +66,7 @@ const getSourceMetadata = (id: string, contract: string, tokenId: string) => {
         name: "OpenSea",
         icon: "https://www.gem.xyz/assets/opensea.1f851ea3.svg",
         url: `https://${
-          config.chainId === 4 && "testnets."
+          config.chainId === 4 ? "testnets." : ""
         }opensea.io/assets/${contract}/${tokenId}`,
       };
     }
