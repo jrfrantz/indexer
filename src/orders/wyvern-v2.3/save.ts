@@ -191,7 +191,11 @@ export const saveOrders = async (
           orderMetadata.data?.tokenId
         );
 
-        arweaveOrderData.push({ order, schemaHash: tokenSetInfo.labelHash });
+        arweaveOrderData.push({
+          order,
+          schemaHash: tokenSetInfo.labelHash,
+          source: orderInfo.source,
+        });
 
         // Create the token set
         queries.push({
@@ -291,7 +295,11 @@ export const saveOrders = async (
             orderMetadata.data?.tokenIdRange
           );
 
-          arweaveOrderData.push({ order, schemaHash: tokenSetInfo.labelHash });
+          arweaveOrderData.push({
+            order,
+            schemaHash: tokenSetInfo.labelHash,
+            source: orderInfo.source,
+          });
 
           // Create the token set
           queries.push({
@@ -438,6 +446,7 @@ export const saveOrders = async (
         arweaveOrderData.push({
           order,
           schemaHash: tokenSetInfo.labelHash,
+          source: orderInfo.source,
         });
 
         // Create the token set

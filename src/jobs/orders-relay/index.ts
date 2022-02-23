@@ -28,17 +28,18 @@ export const addPendingOrdersWyvernV2 = async (
 };
 
 export const addPendingOrdersWyvernV23 = async (
-  data: { order: Sdk.WyvernV23.Order; schemaHash?: string }[]
+  data: { order: Sdk.WyvernV23.Order; schemaHash?: string; source?: string }[]
 ) => {
   if (data.length) {
     await redis.rpush(
       PENDING_ORDERS_KEY,
-      ...data.map(({ order, schemaHash }) =>
+      ...data.map(({ order, schemaHash, source }) =>
         JSON.stringify({
           kind: "wyvern-v2.3",
           data: {
             ...order.params,
             schemaHash,
+            source,
           },
         })
       )
