@@ -14,6 +14,9 @@ export const getExecuteBidOptions: RouteOptions = {
   tags: ["api", "execute"],
   validate: {
     query: Joi.object({
+      source: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-f0-9]{40}$/),
       contract: Joi.string()
         .lowercase()
         .pattern(/^0x[a-f0-9]{40}$/),
@@ -196,6 +199,7 @@ export const getExecuteBidOptions: RouteOptions = {
                               value: query.attributeValue,
                             }
                           : undefined,
+                      source: query.source,
                     },
                   },
                 },

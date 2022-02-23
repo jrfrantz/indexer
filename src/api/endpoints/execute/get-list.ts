@@ -15,6 +15,9 @@ export const getExecuteListOptions: RouteOptions = {
   tags: ["api", "execute"],
   validate: {
     query: Joi.object({
+      source: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-f0-9]{40}$/),
       contract: Joi.string()
         .lowercase()
         .pattern(/^0x[a-f0-9]{40}$/),
@@ -267,6 +270,7 @@ export const getExecuteListOptions: RouteOptions = {
                         contract: query.contract,
                         tokenId: query.tokenId,
                       },
+                      source: query.source,
                     },
                   },
                 },

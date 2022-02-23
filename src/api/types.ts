@@ -26,6 +26,7 @@ export const marketFormat = Joi.object({
       name: Joi.string().allow(null),
       image: Joi.string().allow(null, ""),
     }).allow(null),
+    source: Joi.any(),
   },
   topBuy: Joi.object({
     hash: Joi.string().allow(null),

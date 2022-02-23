@@ -27,6 +27,9 @@ export const postOrderOptions: RouteOptions = {
           .lowercase()
           .valid("reservoir", "opensea")
           .default("reservoir"),
+        source: Joi.string()
+          .lowercase()
+          .pattern(/^0x[a-f0-9]{40}$/),
         data: Joi.alternatives().conditional("kind", {
           switch: [
             { is: "wyvern-v2", then: wyvernV2OrderFormat },
@@ -51,7 +54,7 @@ export const postOrderOptions: RouteOptions = {
     const order = payload.order as any;
 
     try {
-      const { kind, orderbook, data, attribute } = order;
+      const { kind, orderbook, data, attribute, source } = order;
 
       if (kind === "wyvern-v2") {
         const sdkOrder = new Sdk.WyvernV2.Order(config.chainId, data);
@@ -102,7 +105,11 @@ export const postOrderOptions: RouteOptions = {
         }
       } else if (kind === "wyvern-v2.3") {
         const sdkOrder = new Sdk.WyvernV23.Order(config.chainId, data);
-        let orderInfo: wyvernV23.OrderInfo = { order: sdkOrder, attribute };
+        let orderInfo: wyvernV23.OrderInfo = {
+          order: sdkOrder,
+          attribute,
+          source,
+        };
 
         const filterResults = await wyvernV23.filterOrders([orderInfo]);
         if (filterResults.invalid.length) {
