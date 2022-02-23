@@ -573,7 +573,7 @@ export const saveOrders = async (
       // Unknown
       default: {
         sourceInfo = {
-          id: orderInfo.source || AddressZero,
+          id: orderInfo.source || null,
           // Assume everything goes to the order's fee recipient
           bps: feeBps,
         };

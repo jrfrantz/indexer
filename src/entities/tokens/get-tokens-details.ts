@@ -1,5 +1,6 @@
 import { formatEth } from "@/common/bignumber";
 import { db } from "@/common/db";
+import { config } from "@/config/index";
 
 export type GetTokensDetailsFilter = {
   contract?: string;
@@ -8,6 +9,7 @@ export type GetTokensDetailsFilter = {
   attributes?: { [key: string]: string | string[] };
   tokenSetId?: string;
   onSale?: boolean;
+  source?: string;
   sortBy?: "tokenId" | "floorSellValue" | "topBuyValue";
   sortByAttribute?: string;
   sortDirection?: "asc" | "desc";
@@ -56,6 +58,30 @@ export type GetTokensDetailsResponse = {
   };
 }[];
 
+const getSourceMetadata = (id: string, contract: string, tokenId: string) => {
+  switch (id) {
+    // OpenSea
+    case "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073": {
+      return {
+        name: "OpenSea",
+        icon: "https://www.gem.xyz/assets/opensea.1f851ea3.svg",
+        url: `https://${
+          config.chainId === 4 && "testnets."
+        }opensea.io/assets/${contract}/${tokenId}`,
+      };
+    }
+
+    // Unknown
+    default: {
+      return {
+        name: "Unknown",
+        icon: null,
+        url: null,
+      };
+    }
+  }
+};
+
 export const getTokensDetails = async (
   filter: GetTokensDetailsFilter
 ): Promise<GetTokensDetailsResponse> => {
@@ -73,6 +99,7 @@ export const getTokensDetails = async (
       "t"."floor_sell_hash",
       "os"."value" as "floor_sell_value",
       "os"."maker" as "floor_sell_maker",
+      "os"."source_bps",
       date_part('epoch', lower("os"."valid_between")) as "floor_sell_valid_from",
       (case when "t"."floor_sell_hash" is not null
         then coalesce(nullif(date_part('epoch', upper("os"."valid_between")), 'Infinity'), 0)
@@ -166,6 +193,9 @@ export const getTokensDetails = async (
     conditions.push(`"t"."floor_sell_value" is not null`);
   } else if (filter.onSale === false) {
     conditions.push(`"t"."floor_sell_value" is null`);
+  }
+  if (filter.source) {
+    conditions.push(`"os"."source_id" = $/source/`);
   }
   if (conditions.length) {
     baseQuery += " where " + conditions.map((c) => `(${c})`).join(" and ");
@@ -275,6 +305,11 @@ export const getTokensDetails = async (
           maker: r.floor_sell_maker,
           validFrom: r.floor_sell_valid_from,
           validUntil: r.floor_sell_valid_until,
+          source: {
+            id: r.source_id,
+            bps: r.source_bps,
+            ...getSourceMetadata(r.source_id, r.contract, r.token_id),
+          },
         },
         topBuy: {
           hash: r.top_buy_hash,
