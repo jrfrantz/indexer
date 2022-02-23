@@ -11,6 +11,7 @@ export type OrderInfo = {
     key: string;
     value: string;
   };
+  source?: string;
 };
 
 export { BuildOrderOptions, buildOrder, filterOrders, saveOrders };

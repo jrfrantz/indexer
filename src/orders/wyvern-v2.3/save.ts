@@ -1,3 +1,4 @@
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/wyvern-v2/builders/token-list/utils";
 
@@ -162,6 +163,7 @@ export const saveOrders = async (
   const arweaveOrderData: {
     order: Sdk.WyvernV23.Order;
     schemaHash?: string;
+    source?: string;
   }[] = [];
   const arweaveTokenSetData: {
     id: string;
@@ -562,18 +564,8 @@ export const saveOrders = async (
       // OpenSea
       case "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073": {
         sourceInfo = {
-          id: "opensea",
+          id: "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
           bps: 250,
-        };
-        break;
-      }
-
-      // LootExchange
-      case "0x8cfdf9e9f7ea8c0871025318407a6f1fbc5d5a18":
-      case "0x8e71a0d2cc9c48173d9a9b7d90d6036093212afa": {
-        sourceInfo = {
-          id: "lootexchange",
-          bps: 0,
         };
         break;
       }
@@ -581,7 +573,7 @@ export const saveOrders = async (
       // Unknown
       default: {
         sourceInfo = {
-          id: "unknown",
+          id: orderInfo.source || AddressZero,
           // Assume everything goes to the order's fee recipient
           bps: feeBps,
         };
@@ -634,7 +626,8 @@ export const saveOrders = async (
           "price",
           "value",
           "valid_between",
-          "source_info",
+          "source_id",
+          "source_bps",
           "royalty_info",
           "nonce",
           "raw_data",
@@ -651,7 +644,8 @@ export const saveOrders = async (
           $/price/,
           $/value/,
           tstzrange(date_trunc('seconds', to_timestamp($/listingTime/)), date_trunc('seconds', to_timestamp($/expirationTime/))),
-          $/sourceInfo:json/,
+          $/sourceId/,
+          $/sourceBps/,
           $/royaltyInfo:json/,
           $/nonce/,
           $/rawData/,
@@ -666,7 +660,8 @@ export const saveOrders = async (
           "price" = $/price/,
           "value" = $/value/,
           "valid_between" = tstzrange(date_trunc('seconds', to_timestamp($/listingTime/)), date_trunc('seconds', to_timestamp($/expirationTime/))),
-          "source_info" = $/sourceInfo:json/,
+          "source_id" = $/sourceId/,
+          "source_bps" = $/sourceBps/,
           "royalty_info" = $/royaltyInfo:json/,
           "nonce" = $/nonce/,
           "raw_data" = $/rawData/,
@@ -688,7 +683,8 @@ export const saveOrders = async (
           order.params.expirationTime == 0
             ? "infinity"
             : order.params.expirationTime,
-        sourceInfo,
+        sourceId: sourceInfo.id,
+        sourceBps: sourceInfo.bps,
         royaltyInfo,
         nonce: order.params.nonce,
         rawData: order.params,
