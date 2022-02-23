@@ -99,6 +99,7 @@ export const getTokensDetails = async (
       "t"."floor_sell_hash",
       "os"."value" as "floor_sell_value",
       "os"."maker" as "floor_sell_maker",
+      "os"."source_id",
       "os"."source_bps",
       date_part('epoch', lower("os"."valid_between")) as "floor_sell_valid_from",
       (case when "t"."floor_sell_hash" is not null
