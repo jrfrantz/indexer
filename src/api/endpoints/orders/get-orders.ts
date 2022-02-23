@@ -56,10 +56,7 @@ export const getOrdersOptions: RouteOptions = {
           value: Joi.number().unsafe(),
           validFrom: Joi.number(),
           validUntil: Joi.number(),
-          sourceInfo: Joi.object({
-            id: Joi.string(),
-            bps: Joi.number(),
-          }),
+          sourceInfo: Joi.any(),
           royaltyInfo: Joi.array()
             .items(Joi.object({ recipient: Joi.string(), bps: Joi.number() }))
             .allow(null),
