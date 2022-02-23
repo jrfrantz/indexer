@@ -305,11 +305,13 @@ export const getTokensDetails = async (
           maker: r.floor_sell_maker,
           validFrom: r.floor_sell_valid_from,
           validUntil: r.floor_sell_valid_until,
-          source: {
-            id: r.source_id,
-            bps: r.source_bps,
-            ...getSourceMetadata(r.source_id, r.contract, r.token_id),
-          },
+          source: r.floor_sell_value
+            ? {
+                id: r.source_id,
+                bps: r.source_bps,
+                ...getSourceMetadata(r.source_id, r.contract, r.token_id),
+              }
+            : null,
         },
         topBuy: {
           hash: r.top_buy_hash,
