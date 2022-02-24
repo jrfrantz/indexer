@@ -49,6 +49,8 @@ export const getOrders = async (
       "o"."maker",
       "o"."price",
       "o"."value",
+      "o"."source_id",
+      "o"."source_bps",
       date_part('epoch', lower("o"."valid_between")) as "valid_from",
       coalesce(nullif(date_part('epoch', upper("o"."valid_between")), 'Infinity'), 0) as "valid_until",
       "o"."source_info",
@@ -123,7 +125,13 @@ export const getOrders = async (
       value: formatEth(r.value),
       validFrom: r.valid_from,
       validUntil: r.valid_until,
-      sourceInfo: r.source_info,
+      sourceInfo: {
+        id:
+          r.source_id === "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073"
+            ? "opensea"
+            : "unknown",
+        bps: r.source_bps,
+      },
       royaltyInfo: r.royalty_info,
       rawData: r.raw_data,
     }))
