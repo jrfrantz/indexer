@@ -59,7 +59,7 @@ export const addPendingTokenSets = async (
           data: {
             ...tokenSet,
             // Fix wrong token set ids
-            id: `list:${tokenSet.contract}:${tokenSet.id}`,
+            id: `list:${tokenSet.contract}:${tokenSet.id.split(":")[1]}`,
           },
         })
       )
