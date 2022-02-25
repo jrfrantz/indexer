@@ -8,6 +8,7 @@ import { start } from "@/api/index";
 import { logger } from "@/common/logger";
 import { db } from "./common/db";
 import { addToOrdersUpdateByHashQueue } from "./jobs/orders-update";
+import { config } from "./config/index";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
@@ -15,6 +16,7 @@ process.on("unhandledRejection", (error) => {
 });
 
 const foo = async () => {
+  if (!config.master) return;
   let done = false;
   let i = 0;
   while (!done) {
