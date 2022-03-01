@@ -91,13 +91,12 @@ export const postOrderOptions: RouteOptions = {
               `https://${
                 config.chainId === 4 ? "testnets-api." : "api."
               }opensea.io/wyvern/v1/orders/post`,
+              JSON.stringify(osOrder),
               {
-                method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "x-api-key": process.env.OPENSEA_API_KEY,
+                  "X-Api-Key": String(process.env.OPENSEA_API_KEY),
                 },
-                body: osOrder,
               }
             )
             .catch((error) => {
