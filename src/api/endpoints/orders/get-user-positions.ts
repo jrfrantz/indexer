@@ -38,6 +38,7 @@ export const getUserPositionsOptions: RouteOptions = {
           primaryOrder: {
             value: Joi.number().unsafe().allow(null),
             expiry: Joi.number().unsafe().allow(null),
+            hash: Joi.string().allow(null),
             status: Joi.string().allow(null),
           },
           totalValid: Joi.number().allow(null),

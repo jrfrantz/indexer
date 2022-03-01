@@ -23,6 +23,7 @@ export type GetUserPositionsResponse = {
     value: number | null;
     expiry: number | null;
     status: string | null;
+    hash: string | null;
   };
   totalValid: number | null;
 }[];
@@ -40,6 +41,7 @@ export const getUserPositions = async (
         "o"."value",
         "o"."status",
         "o"."expiry",
+        "o"."hash",
         (count(*) over (partition by "o"."token_set_id"))::int as "total_valid"
       from "orders" "o"
       where "o"."status" = 'valid'
@@ -54,6 +56,7 @@ export const getUserPositions = async (
         "o"."value",
         "o"."status",
         "o"."expiry",
+        "o"."hash",
         0 as "total_valid"
       from "orders" "o"
       where "o"."status" != 'valid'
@@ -68,6 +71,7 @@ export const getUserPositions = async (
         "o"."value",
         "o"."status",
         "o"."expiry",
+        "o"."hash",
         (count(*) over (partition by "o"."token_set_id"))::int as "total_valid"
       from "orders" "o"
       where "o"."status" = 'valid'
@@ -82,6 +86,7 @@ export const getUserPositions = async (
         "o"."value",
         "o"."status",
         "o"."expiry",
+        "o"."hash",
         0 as "total_valid"
       from "orders" "o"
       where "o"."status" != 'valid'
@@ -97,6 +102,7 @@ export const getUserPositions = async (
       "x"."token_set_id",
       "x"."value",
       "x"."status",
+      "x"."hash",
       coalesce(nullif(date_part('epoch', "x"."expiry"), 'Infinity'), 0) as "expiry",
       "x"."total_valid",
       "ts"."label" as "schema",
@@ -161,6 +167,7 @@ export const getUserPositions = async (
         value: r.value ? formatEth(r.value) : null,
         expiry: r.expiry,
         status: r.status,
+        hash: r.hash,
       },
       totalValid: r.total_valid,
     }))
