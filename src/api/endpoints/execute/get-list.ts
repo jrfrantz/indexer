@@ -90,19 +90,24 @@ export const getExecuteListOptions: RouteOptions = {
         return { error: "Could not generate order" };
       }
 
+      const info = order.getInfo();
+      if (!info) {
+        return { error: "Could not generate order" };
+      }
+
       // Step 1: Check that the taker owns the token
       const { kind } = await db.one(
         `
           select "c"."kind" from "contracts" "c"
           where "c"."address" = $/address/
         `,
-        { address: order.params.target }
+        { address: info.contract }
       );
 
       if (kind === "erc721") {
         const contract = new Sdk.Common.Helpers.Erc721(
           baseProvider,
-          order.params.target
+          info.contract
         );
         const owner = await contract.getOwner(query.tokenId);
         if (owner.toLowerCase() !== query.maker) {
@@ -111,7 +116,7 @@ export const getExecuteListOptions: RouteOptions = {
       } else if (kind === "erc1155") {
         const contract = new Sdk.Common.Helpers.Erc1155(
           baseProvider,
-          order.params.target
+          info.contract
         );
         const balance = await contract.getBalance(query.maker, query.tokenId);
         if (bn(balance).isZero()) {
@@ -186,14 +191,14 @@ export const getExecuteListOptions: RouteOptions = {
       if (kind === "erc721") {
         const contract = new Sdk.Common.Helpers.Erc721(
           baseProvider,
-          order.params.target
+          info.contract
         );
         isApproved = await contract.isApproved(query.maker, proxy);
         approvalTx = contract.approveTransaction(query.maker, proxy);
       } else if (kind === "erc1155") {
         const contract = new Sdk.Common.Helpers.Erc1155(
           baseProvider,
-          order.params.target
+          info.contract
         );
         isApproved = await contract.isApproved(query.maker, proxy);
         approvalTx = contract.approveTransaction(query.maker, proxy);
