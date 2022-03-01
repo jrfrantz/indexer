@@ -86,7 +86,7 @@ export const postOrderOptions: RouteOptions = {
           };
 
           // Post order to OpenSea
-          await axios.post(
+          const response = await axios.post(
             `https://${
               config.chainId === 4 ? "testnets-api." : "api."
             }opensea.io/wyvern/v1/orders/post`,
@@ -99,6 +99,8 @@ export const postOrderOptions: RouteOptions = {
               body: JSON.stringify(osOrder),
             }
           );
+          logger.info("debug", JSON.stringify(response.data));
+          logger.info("debug", JSON.stringify(osOrder));
         } else {
           throw Boom.badRequest("Unsupported order kind");
         }
