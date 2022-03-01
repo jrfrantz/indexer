@@ -85,22 +85,24 @@ export const postOrderOptions: RouteOptions = {
             hash: sdkOrder.hash(),
           };
 
-          // Post order to OpenSea
-          const response = await axios.post(
-            `https://${
-              config.chainId === 4 ? "testnets-api." : "api."
-            }opensea.io/wyvern/v1/orders/post`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-api-key": process.env.OPENSEA_API_KEY,
-              },
-              body: JSON.stringify(osOrder),
-            }
-          );
-          logger.info("debug", JSON.stringify(response.data));
           logger.info("debug", JSON.stringify(osOrder));
+
+          // Post order to OpenSea
+          await axios
+            .post(
+              `https://${
+                config.chainId === 4 ? "testnets-api." : "api."
+              }opensea.io/wyvern/v1/orders/post`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-api-key": process.env.OPENSEA_API_KEY,
+                },
+                body: JSON.stringify(osOrder),
+              }
+            )
+            .catch((error) => console.log(error));
         } else {
           throw Boom.badRequest("Unsupported order kind");
         }
