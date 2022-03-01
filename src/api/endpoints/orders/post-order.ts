@@ -88,7 +88,7 @@ export const postOrderOptions: RouteOptions = {
           // Post order to OpenSea
           await axios.post(
             `https://${
-              config.chainId === 4 ? "testnets-api." : ""
+              config.chainId === 4 ? "testnets-api." : "api."
             }opensea.io/wyvern/v1/orders/post`,
             {
               method: "POST",
