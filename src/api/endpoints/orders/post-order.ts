@@ -102,7 +102,7 @@ export const postOrderOptions: RouteOptions = {
                 body: JSON.stringify(osOrder),
               }
             )
-            .catch((error) => console.log(error));
+            .catch((error) => logger.error("debug", JSON.stringify(error)));
         } else {
           throw Boom.badRequest("Unsupported order kind");
         }
