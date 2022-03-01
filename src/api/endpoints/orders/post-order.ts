@@ -85,8 +85,6 @@ export const postOrderOptions: RouteOptions = {
             hash: sdkOrder.hash(),
           };
 
-          logger.info("debug", JSON.stringify(osOrder));
-
           // Post order to OpenSea
           await axios
             .post(
@@ -99,10 +97,18 @@ export const postOrderOptions: RouteOptions = {
                   "Content-Type": "application/json",
                   "x-api-key": process.env.OPENSEA_API_KEY,
                 },
-                body: JSON.stringify(osOrder),
+                body: osOrder,
               }
             )
-            .catch((error) => logger.error("debug", JSON.stringify(error)));
+            .catch((error) => {
+              if (error.response) {
+                logger.error(
+                  "post_order",
+                  `Failed to post order to OpenSea: ${error.response.data}`
+                );
+              }
+              throw error;
+            });
         } else {
           throw Boom.badRequest("Unsupported order kind");
         }
