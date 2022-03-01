@@ -108,13 +108,18 @@ export const getOrdersAll = async (
       value: formatEth(r.value),
       validFrom: Number(r.valid_from),
       validUntil: Number(r.valid_until),
-      sourceInfo: r.source_info,
+      sourceInfo: {
+        id:
+          r.source_id === "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073"
+            ? "opensea"
+            : "unknown",
+        bps: r.source_bps,
+      },
       royaltyInfo: r.royalty_info,
       createdAt: new Date(r.created_at).toISOString(),
       rawData: r.raw_data,
     }))
   );
-
 
   let continuation = null;
   if (orders.length === filter.limit) {
