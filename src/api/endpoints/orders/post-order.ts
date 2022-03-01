@@ -69,7 +69,7 @@ export const postOrderOptions: RouteOptions = {
           }
         } else if (orderbook === "opensea") {
           const osOrder = {
-            ...order.params,
+            ...sdkOrder.params,
             makerProtocolFee: "0",
             takerProtocolFee: "0",
             makerReferrerFee: "0",
@@ -82,7 +82,7 @@ export const postOrderOptions: RouteOptions = {
               },
               schema: "ERC721",
             },
-            hash: order.hash(),
+            hash: sdkOrder.hash(),
           };
 
           // Post order to OpenSea
