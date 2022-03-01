@@ -94,13 +94,14 @@ export const buildOrder = async (options: BuildOrderOptions) => {
       (buildParams as any).tokenId = tokenId;
 
       if (data.kind === "erc721") {
-        builder = new Sdk.WyvernV23.Builders.Erc721.SingleToken.V1(
-          config.chainId
-        );
+        builder =
+          options.orderbook === "opensea"
+            ? new Sdk.WyvernV23.Builders.Erc721.SingleToken.V2(config.chainId)
+            : new Sdk.WyvernV23.Builders.Erc721.SingleToken.V1(config.chainId);
       } else if (data.kind === "erc1155") {
-        builder = new Sdk.WyvernV23.Builders.Erc1155.SingleToken.V1(
-          config.chainId
-        );
+        options.orderbook === "opensea"
+          ? new Sdk.WyvernV23.Builders.Erc1155.SingleToken.V2(config.chainId)
+          : new Sdk.WyvernV23.Builders.Erc1155.SingleToken.V1(config.chainId);
       }
     } else if (
       options.collection &&
