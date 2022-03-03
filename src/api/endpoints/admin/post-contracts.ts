@@ -182,9 +182,12 @@ export const postContractsOptions: RouteOptions = {
         if (process.env.OPENSEA_INDEXER_URL) {
           for (const { address } of validContracts) {
             try {
-              await axios.post(`${process.env.OPENSEA_INDEXER_URL}/relay/v3`, {
-                contract: address,
-              });
+              await axios.post(
+                `${process.env.OPENSEA_INDEXER_URL}/relay-orders-by-contract`,
+                {
+                  contract: address,
+                }
+              );
             } catch (error) {
               // Skip failing requests
               logger.error(
