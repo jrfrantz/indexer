@@ -112,7 +112,7 @@ export const getTransfers = async (
   return db.manyOrNone(baseQuery, filter).then((result) =>
     result.map((r) => ({
       token: {
-        contract: r.contract,
+        contract: r.address,
         tokenId: r.token_id,
         name: r.name,
         image: r.image,
