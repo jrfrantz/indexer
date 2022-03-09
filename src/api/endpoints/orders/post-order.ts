@@ -93,10 +93,15 @@ export const postOrderOptions: RouteOptions = {
               }opensea.io/wyvern/v1/orders/post`,
               JSON.stringify(osOrder),
               {
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Api-Key": String(process.env.OPENSEA_API_KEY),
-                },
+                headers:
+                  config.chainId === 1
+                    ? {
+                        "Content-Type": "application/json",
+                        "X-Api-Key": String(process.env.OPENSEA_API_KEY),
+                      }
+                    : {
+                        "Content-Type": "application/json",
+                      },
               }
             )
             .catch((error) => {
