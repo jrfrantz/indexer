@@ -108,7 +108,9 @@ export const postOrderOptions: RouteOptions = {
               if (error.response) {
                 logger.error(
                   "post_order",
-                  `Failed to post order to OpenSea: ${error.response.data}`
+                  `Failed to post order to OpenSea: ${JSON.stringify(
+                    error.response.data
+                  )}`
                 );
               }
               throw error;
