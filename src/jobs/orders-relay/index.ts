@@ -58,6 +58,19 @@ export const addPendingTokenSets = async (
           kind: "token-set",
           data: {
             ...tokenSet,
+            schema: {
+              kind: tokenSet.schema.kind,
+              data: {
+                // This won't cover artblocks
+                collection: tokenSet.contract,
+                attributes: [
+                  {
+                    key: tokenSet.schema.data.attribute.key,
+                    value: tokenSet.schema.data.attribute.value,
+                  },
+                ],
+              },
+            },
             // Fix wrong token set ids
             id: `list:${tokenSet.contract}:${tokenSet.id.split(":")[1]}`,
           },
