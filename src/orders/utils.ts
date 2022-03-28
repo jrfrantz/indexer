@@ -1,3 +1,4 @@
+import { HashZero } from "@ethersproject/constants";
 import crypto from "crypto";
 import stringify from "json-stable-stringify";
 
@@ -32,13 +33,14 @@ export const generateTokenInfo = (contract: string, tokenId: string) => {
       tokenId,
     },
   };
-  const labelHash =
-    "0x" + crypto.createHash("sha256").update(stringify(label)).digest("hex");
+  // const labelHash =
+  //   "0x" + crypto.createHash("sha256").update(stringify(label)).digest("hex");
 
   return {
     id: `token:${contract}:${tokenId}`,
     label,
-    labelHash,
+    // Use the default schema hash
+    labelHash: HashZero,
   };
 };
 
@@ -53,20 +55,22 @@ export const generateCollectionInfo = (
       collection,
     },
   };
-  const labelHash =
-    "0x" + crypto.createHash("sha256").update(stringify(label)).digest("hex");
+  // const labelHash =
+  //   "0x" + crypto.createHash("sha256").update(stringify(label)).digest("hex");
 
   if (tokenIdRange) {
     return {
       id: `range:${contract}:${tokenIdRange[0]}:${tokenIdRange[1]}`,
       label,
-      labelHash,
+      // Use the default schema hash
+      labelHash: HashZero,
     };
   } else {
     return {
       id: `contract:${contract}`,
       label,
-      labelHash,
+      // Use the default schema hash
+      labelHash: HashZero,
     };
   }
 };
